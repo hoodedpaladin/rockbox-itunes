@@ -99,7 +99,6 @@ static const struct id3_to_search_mapping {
     { "#artist#", offsetof(struct mp3entry, artist) },
     { "#album#",  offsetof(struct mp3entry, album) },
     { "#genre#",  offsetof(struct mp3entry, genre_string) },
-    { "#composer#",  offsetof(struct mp3entry, composer) },
     { "#albumartist#",   offsetof(struct mp3entry, albumartist) },
 };
 enum variables {
@@ -330,11 +329,8 @@ static int get_tag(int *tag)
         {"album", tag_album},
         {"artist", tag_artist},
         {"bitrate", tag_bitrate},
-        {"composer", tag_composer},
-        {"comment", tag_comment},
         {"albumartist", tag_albumartist},
         {"ensemble", tag_albumartist},
-        {"grouping", tag_grouping},
         {"genre", tag_genre},
         {"length", tag_length},
         {"Lm", tag_virt_length_min},

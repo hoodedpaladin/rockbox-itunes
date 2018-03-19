@@ -31,7 +31,7 @@
  tagcache.c and bump up the header version too.
  */
 enum tag_type { tag_artist = 0, tag_album, tag_genre, tag_title,
-    tag_filename, tag_composer, tag_comment, tag_albumartist, tag_grouping, tag_year, 
+    tag_filename, tag_albumartist, tag_year,
     tag_discnumber, tag_tracknumber, tag_bitrate, tag_length, tag_playcount, tag_rating,
     tag_playtime, tag_lastplayed, tag_commitid, tag_mtime, tag_lastelapsed,
     tag_lastoffset, tag_lastplayedrtc, tag_itunes_playcount, tag_ituneslo, tag_ituneshi,

@@ -115,24 +115,24 @@ static long tempbuf_pos;
 static int tempbuf_handle;
 #endif
 
-#define SORTED_TAGS_COUNT 8
+#define SORTED_TAGS_COUNT 5
 #define TAGCACHE_IS_UNIQUE(tag) (BIT_N(tag) & TAGCACHE_UNIQUE_TAGS)
 #define TAGCACHE_IS_SORTED(tag) (BIT_N(tag) & TAGCACHE_SORTED_TAGS)
 #define TAGCACHE_IS_NUMERIC_OR_NONUNIQUE(tag) \
     (BIT_N(tag) & (TAGCACHE_NUMERIC_TAGS | ~TAGCACHE_UNIQUE_TAGS))
 /* Tags we want to get sorted (loaded to the tempbuf). */
 #define TAGCACHE_SORTED_TAGS ((1LU << tag_artist) | (1LU << tag_album) | \
-    (1LU << tag_genre) | (1LU << tag_composer) | (1LU << tag_comment) | \
-    (1LU << tag_albumartist) | (1LU << tag_grouping) | (1LU << tag_title))
+    (1LU << tag_genre) | \
+    (1LU << tag_albumartist) | (1LU << tag_title))
 
 /* Uniqued tags (we can use these tags with filters and conditional clauses). */
 #define TAGCACHE_UNIQUE_TAGS ((1LU << tag_artist) | (1LU << tag_album) | \
-    (1LU << tag_genre) | (1LU << tag_composer) | (1LU << tag_comment) | \
-    (1LU << tag_albumartist) | (1LU << tag_grouping))
+    (1LU << tag_genre) | \
+    (1LU << tag_albumartist))
 
 /* String presentation of the tags defined in tagcache.h. Must be in correct order! */
 static const char *tags_str[] = { "artist", "album", "genre", "title", 
-    "filename", "composer", "comment", "albumartist", "grouping", "year", 
+    "filename", "albumartist", "year", 
     "discnumber", "tracknumber", "bitrate", "length", "playcount", "rating", 
     "playtime", "lastplayed", "commitid", "mtime", "lastelapsed", "lastoffset",
     "lastplayedrtc", "itunes_playcount", "ituneslo", "ituneshi" };
@@ -201,7 +201,7 @@ static const char * const tagfile_entry_ec   = "ll";
 /**
  Note: This should be (1 + TAG_COUNT) amount of l's.
  */
-static const char * const index_entry_ec     = "lllllllllllllllllllllllllll";
+static const char * const index_entry_ec     = "llllllllllllllllllllllll";
 
 static const char * const tagcache_header_ec = "lll";
 static const char * const master_header_ec   = "llllll";
@@ -1762,10 +1762,7 @@ bool tagcache_fill_tags(struct mp3entry *id3, const char *filename)
     SET(id3->artist,        tag_artist);
     SET(id3->album,         tag_album);
     SET(id3->genre_string,  tag_genre);
-    SET(id3->composer,      tag_composer);
-    SET(id3->comment,       tag_comment);
     SET(id3->albumartist,   tag_albumartist);
-    SET(id3->grouping,      tag_grouping);
 
     id3->length     = get_tag_numeric(entry, tag_length, idx_id);
     id3->playcount  = get_tag_numeric(entry, tag_playcount, idx_id);
@@ -1845,7 +1842,6 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     int offset = 0;
     int path_length = strlen(path);
     bool has_albumartist;
-    bool has_grouping;
 
 #ifdef SIMULATOR
     /* Crude logging for the sim - to aid in debugging */
@@ -1946,16 +1942,12 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     /* String tags. */
     has_albumartist = id3.albumartist != NULL
         && strlen(id3.albumartist) > 0;
-    has_grouping = id3.grouping != NULL
-        && strlen(id3.grouping) > 0;
 
     ADD_TAG(entry, tag_filename, &path);
     ADD_TAG(entry, tag_title, &id3.title);
     ADD_TAG(entry, tag_artist, &id3.artist);
     ADD_TAG(entry, tag_album, &id3.album);
     ADD_TAG(entry, tag_genre, &id3.genre_string);
-    ADD_TAG(entry, tag_composer, &id3.composer);
-    ADD_TAG(entry, tag_comment, &id3.comment);
     if (has_albumartist)
     {
         ADD_TAG(entry, tag_albumartist, &id3.albumartist);
@@ -1963,14 +1955,6 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     else
     {
         ADD_TAG(entry, tag_albumartist, &id3.artist);
-    }
-    if (has_grouping)
-    {
-        ADD_TAG(entry, tag_grouping, &id3.grouping);
-    }
-    else
-    {
-        ADD_TAG(entry, tag_grouping, &id3.title);
     }
     entry.data_length = offset;
     
@@ -1983,8 +1967,6 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     write_item(id3.artist);
     write_item(id3.album);
     write_item(id3.genre_string);
-    write_item(id3.composer);
-    write_item(id3.comment);
     if (has_albumartist)
     {
         write_item(id3.albumartist);
@@ -1992,14 +1974,6 @@ static void NO_INLINE add_tagcache(char *path, unsigned long mtime)
     else
     {
         write_item(id3.artist);
-    }
-    if (has_grouping)
-    {
-        write_item(id3.grouping);
-    }
-    else
-    {
-        write_item(id3.title);
     }
 
     total_entry_count++;
