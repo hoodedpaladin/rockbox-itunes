@@ -232,7 +232,7 @@ static inline void cpu_boost_unlock(void)
 #endif /* HAVE_ADJUSTABLE_CPU_FREQ */
 
 #ifndef BIT_N
-#define BIT_N(n) (1U << (n))
+#define BIT_N(n) (1ULL << (n))
 #endif
 
 #ifndef MASK_N

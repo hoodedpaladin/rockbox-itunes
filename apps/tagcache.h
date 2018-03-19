@@ -34,7 +34,7 @@ enum tag_type { tag_artist = 0, tag_album, tag_genre, tag_title,
     tag_filename, tag_composer, tag_comment, tag_albumartist, tag_grouping, tag_year, 
     tag_discnumber, tag_tracknumber, tag_bitrate, tag_length, tag_playcount, tag_rating,
     tag_playtime, tag_lastplayed, tag_commitid, tag_mtime, tag_lastelapsed,
-    tag_lastoffset,
+    tag_lastoffset, tag_lastplayedrtc, tag_itunes_playcount, tag_ituneslo, tag_ituneshi,
     /* Real tags end here, count them. */
     TAG_COUNT,
     /* Virtual tags */
@@ -104,15 +104,16 @@ enum tag_type { tag_artist = 0, tag_album, tag_genre, tag_title,
 #define UNTAGGED "<Untagged>"
 
 /* Numeric tags (we can use these tags with conditional clauses). */
-#define TAGCACHE_NUMERIC_TAGS ((1LU << tag_year) | (1LU << tag_discnumber) | \
-    (1LU << tag_tracknumber) | (1LU << tag_length) | (1LU << tag_bitrate) | \
-    (1LU << tag_playcount) | (1LU << tag_rating) | (1LU << tag_playtime) | \
-    (1LU << tag_lastplayed) | (1LU << tag_commitid) | (1LU << tag_mtime) | \
-    (1LU << tag_lastelapsed) | (1LU << tag_lastoffset) | \
-    (1LU << tag_virt_basename) | (1LU << tag_virt_length_min) | \
-    (1LU << tag_virt_length_sec) | (1LU << tag_virt_playtime_min) | \
-    (1LU << tag_virt_playtime_sec) | (1LU << tag_virt_entryage) | \
-    (1LU << tag_virt_autoscore))
+#define TAGCACHE_NUMERIC_TAGS ((1ULL << tag_year) | (1ULL << tag_discnumber) | \
+    (1ULL << tag_tracknumber) | (1ULL << tag_length) | (1ULL << tag_bitrate) | \
+    (1ULL << tag_playcount) | (1ULL << tag_rating) | (1ULL << tag_playtime) | \
+    (1ULL << tag_lastplayed) | (1ULL << tag_commitid) | (1ULL << tag_mtime) | \
+    (1ULL << tag_lastelapsed) | (1ULL << tag_lastoffset) | \
+    (1ULL << tag_virt_basename) | (1ULL << tag_virt_length_min) | \
+    (1ULL << tag_virt_length_sec) | (1ULL << tag_virt_playtime_min) | \
+    (1ULL << tag_virt_playtime_sec) | (1ULL << tag_virt_entryage) | \
+    (1ULL << tag_virt_autoscore) | (1ULL << tag_lastplayedrtc) | \
+    (1ULL << tag_itunes_playcount) | (1ULL << tag_ituneslo) | (1ULL << tag_ituneshi))
 
 #define TAGCACHE_IS_NUMERIC(tag) (BIT_N(tag) & TAGCACHE_NUMERIC_TAGS)
 

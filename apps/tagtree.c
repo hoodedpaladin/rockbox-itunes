@@ -1,4 +1,9 @@
 /***************************************************************************
+./firmware/target/arm/imx233/regs/stmp3700/rtc.h
+./firmware/target/arm/imx233/regs/rtc.h
+./firmware/target/arm/imx233/regs/imx233/rtc.h
+./firmware/target/arm/imx233/regs/stmp3600/rtc.h
+./firmware/export/rtc.h
  *             __________               __   ___.
  *   Open      \______   \ ____   ____ |  | _\_ |__   _______  ___
  *   Source     |       _//  _ \_/ ___\|  |/ /| __ \ /  _ \  \/  /
@@ -55,6 +60,8 @@
 #include "playback.h"
 #include "strnatcmp.h"
 #include "panic.h"
+#include "time.h"
+#include "timefuncs.h"
 
 #define str_or_empty(x) (x ? x : "(NULL)")
 
@@ -977,6 +984,7 @@ static void tagtree_track_finish_event(unsigned short id, void *ev_data)
         tagcache_update_numeric(tagcache_idx, tag_playcount, playcount);
         tagcache_update_numeric(tagcache_idx, tag_playtime, playtime);
         tagcache_update_numeric(tagcache_idx, tag_lastplayed, lastplayed);
+        tagcache_update_numeric(tagcache_idx, tag_lastplayedrtc, mktime(get_time()));
     }
 
     if (autoresume)

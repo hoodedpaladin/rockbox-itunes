@@ -134,7 +134,8 @@ static int tempbuf_handle;
 static const char *tags_str[] = { "artist", "album", "genre", "title", 
     "filename", "composer", "comment", "albumartist", "grouping", "year", 
     "discnumber", "tracknumber", "bitrate", "length", "playcount", "rating", 
-    "playtime", "lastplayed", "commitid", "mtime", "lastelapsed", "lastoffset" };
+    "playtime", "lastplayed", "commitid", "mtime", "lastelapsed", "lastoffset",
+    "lastplayedrtc", "itunes_playcount", "ituneslo", "ituneshi" };
 
 /* Status information of the tagcache. */
 static struct tagcache_stat tc_stat;
@@ -200,7 +201,7 @@ static const char * const tagfile_entry_ec   = "ll";
 /**
  Note: This should be (1 + TAG_COUNT) amount of l's.
  */
-static const char * const index_entry_ec     = "lllllllllllllllllllllll";
+static const char * const index_entry_ec     = "lllllllllllllllllllllllllll";
 
 static const char * const tagcache_header_ec = "lll";
 static const char * const master_header_ec   = "llllll";
