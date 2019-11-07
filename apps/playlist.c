@@ -681,6 +681,110 @@ int playlist_remove_all_tracks(struct playlist_info *playlist)
     return 0;
 }
 
+/*
+ * Removes the current tracks and all following, minus the presently playing track.
+ */
+int playlist_remove_all_after(struct playlist_info *playlist, int position)
+{
+    int result = 0;
+    int num_to_remove;
+    int offset;
+
+    if (playlist == NULL)
+        playlist = &current_playlist;
+    if (playlist->amount == 0)
+        return 0;
+
+    if (check_control(playlist) < 0)
+    {
+        splash(HZ*2, ID2P(LANG_PLAYLIST_CONTROL_ACCESS_ERROR));
+        return -1;
+    }
+
+    num_to_remove = (playlist->amount - position + playlist->first_index) % playlist->amount;
+    //The whole-list-remove case doesn't mod correctly, so fix it:
+    if (num_to_remove == 0)
+    {
+        num_to_remove = playlist->amount;
+    }
+
+    offset = 0;
+    while (num_to_remove)
+    {
+        int i = (playlist->first_index + playlist->amount - 1 - offset) % playlist->amount;
+        if (i == playlist->index)
+        {
+            // This is the playing track, so skip it from now on
+            offset += 1;
+        }
+        else
+        {
+            // This is not the playing track, so remove it
+            result = remove_track_from_playlist(playlist, i, true);
+            if (result < 0)
+                return result;
+        }
+        num_to_remove--;
+    }
+
+    if (result != -1 && (audio_status() & AUDIO_STATUS_PLAY) &&
+        playlist->started)
+        audio_flush_and_reload_tracks();
+
+    return 0;
+}
+
+/*
+ * Removes the current tracks and all before, minus the presently playing track.
+ */
+int playlist_remove_all_before(struct playlist_info *playlist, int position)
+{
+    int result = 0;
+    int num_to_remove;
+    int offset = 0;
+
+    if (playlist == NULL)
+        playlist = &current_playlist;
+
+    if (check_control(playlist) < 0)
+    {
+        splash(HZ*2, ID2P(LANG_PLAYLIST_CONTROL_ACCESS_ERROR));
+        return -1;
+    }
+    if (playlist->amount == 0)
+    {
+        return 0;
+    }
+
+    num_to_remove = (position + 1 - playlist->first_index + playlist->amount) % playlist->amount;
+    //The whole-list-remove case doesn't mod correctly, so fix it:
+    if (num_to_remove == 0)
+        num_to_remove = playlist->amount;
+    offset = 0;
+    while (num_to_remove)
+    {
+        int i = (playlist->first_index + offset) % playlist->amount;
+        if (i == playlist->index)
+        {
+            // This is the playing track, so remove track 1 now
+            offset += 1;
+        }
+        else
+        {
+            // This is not the playing track, so remove it
+            result = remove_track_from_playlist(playlist, i, true);
+            if (result < 0)
+                return result;
+        }
+        num_to_remove--;
+    }
+
+    if (result != -1 && (audio_status() & AUDIO_STATUS_PLAY) &&
+        playlist->started)
+        audio_flush_and_reload_tracks();
+
+    return 0;
+}
 
 /*
  * Add track to playlist at specified position. There are seven special
@@ -3059,10 +3163,24 @@ int playlist_insert_directory(struct playlist_info* playlist,
         return -1;
     }
 
-    if (position == PLAYLIST_REPLACE)
+    if ((position == PLAYLIST_REPLACE) || (position == PLAYLIST_REPLACE_SHUFFLED))
     {
         if (playlist_remove_all_tracks(playlist) == 0)
-            position = PLAYLIST_INSERT_LAST;
+        {
+            if (position == PLAYLIST_REPLACE)
+            {
+                position = PLAYLIST_INSERT_LAST;
+            }
+            else if (position == PLAYLIST_REPLACE_SHUFFLED)
+            {
+                playlist_set_last_shuffled_start();
+                position = PLAYLIST_INSERT_LAST_SHUFFLED;
+            }
+            else
+            {
+                return -1;
+            }
+        }
         else
             return -1;
     }
@@ -3143,10 +3261,15 @@ int playlist_insert_playlist(struct playlist_info* playlist, const char *filenam
 
     display_playlist_count(count, count_str, false);
 
-    if (position == PLAYLIST_REPLACE)
+    if ((position == PLAYLIST_REPLACE) || (position == PLAYLIST_REPLACE_SHUFFLED))
     {
         if (playlist_remove_all_tracks(playlist) == 0)
-            position = PLAYLIST_INSERT_LAST;
+        {
+            if (position == PLAYLIST_REPLACE)
+                position = PLAYLIST_INSERT_LAST;
+            else
+                position = PLAYLIST_INSERT_SHUFFLED;
+        }
         else return -1;
     }
 

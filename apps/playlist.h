@@ -55,7 +55,8 @@ enum {
     PLAYLIST_INSERT_FIRST = -4,
     PLAYLIST_INSERT_SHUFFLED = -5,
     PLAYLIST_REPLACE = -6,
-    PLAYLIST_INSERT_LAST_SHUFFLED = -7
+    PLAYLIST_INSERT_LAST_SHUFFLED = -7,
+    PLAYLIST_REPLACE_SHUFFLED = -8
 };
 
 enum {
@@ -187,5 +188,7 @@ int playlist_directory_tracksearch(const char* dirname, bool recurse,
                                    int (*callback)(char*, void*),
                                    void* context);
 int playlist_remove_all_tracks(struct playlist_info *playlist);
+int playlist_remove_all_after(struct playlist_info *playlist, int position);
+int playlist_remove_all_before(struct playlist_info *playlist, int position);
 
 #endif /* __PLAYLIST_H__ */

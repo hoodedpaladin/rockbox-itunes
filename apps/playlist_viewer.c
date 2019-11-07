@@ -491,7 +491,9 @@ static int onplay_menu(int index)
                         ID2P(LANG_CURRENT_PLAYLIST), ID2P(LANG_CATALOG),
                         ID2P(LANG_REMOVE), ID2P(LANG_MOVE), ID2P(LANG_SHUFFLE),
                         ID2P(LANG_SAVE_DYNAMIC_PLAYLIST),
-                        ID2P(LANG_PLAYLISTVIEWER_SETTINGS));
+                        ID2P(LANG_PLAYLISTVIEWER_SETTINGS),
+                        ID2P(LANG_REMOVE_BEFORE),
+                        ID2P(LANG_REMOVE_AFTER));
     bool current = (current_track->index == viewer.current_playing_track);
 
     result = do_menu(&menu_items, NULL, NULL, false);
@@ -560,6 +562,14 @@ static int onplay_menu(int index)
                 /* playlist viewer settings */
                 result = do_menu(&viewer_settings_menu, NULL, NULL, false);
                 ret = (result == MENU_ATTACHED_USB) ? -1 : 0;
+                break;
+            case 7:
+                result = playlist_remove_all_before(viewer.playlist, current_track->index);
+                ret = 3;
+                break;
+            case 8:
+                result = playlist_remove_all_after(viewer.playlist, current_track->index);
+                ret = 3;
                 break;
         }
     }
@@ -835,6 +845,8 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename)
                     if (ret_val == 2)
                         gui_synclist_del_item(&playlist_lists);
                     update_playlist(true);
+                    if (ret_val == 3)
+                        gui_synclist_set_nb_items(&playlist_lists, viewer.num_tracks);
                     if (viewer.num_tracks <= 0)
                         exit = true;
                     if (viewer.selected_track >= viewer.num_tracks)
