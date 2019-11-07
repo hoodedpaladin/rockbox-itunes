@@ -667,9 +667,9 @@ static int ata_power_up(void)
         if (ata_identify_data[82] & BIT(5))
             PASS_RC(ata_set_feature(0x02, 0), 3, 5);
         if (ata_identify_data[82] & BIT(6)) PASS_RC(ata_set_feature(0xaa, 0), 3, 6);
-        ATA_PIO_TIME = piotime;
-        ATA_MDMA_TIME = mdmatime;
-        ATA_UDMA_TIME = udmatime;
+        ATA_PIO_TIME = (piotime * 3) / 2;
+        ATA_MDMA_TIME = (mdmatime * 3) / 2;
+        ATA_UDMA_TIME = (udmatime * 3) / 2;
     }
     spinup_time = current_tick - spinup_start;
     if (ata_lba48)
