@@ -6359,6 +6359,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_REPLACE_SHUFFLED
+  desc: in onplay menu.  Replace the current playlist with a new one.
+  user: core
+  <source>
+    *: "Play Next Shuffled"
+  </source>
+  <dest>
+    *: "Play Next Shuffled"
+  </dest>
+  <voice>
+    *: "Play Next Shuffled"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_PLAYLIST_INSERT_COUNT
   desc: splash number of tracks inserted
   user: core
@@ -15585,5 +15599,33 @@
   </dest>
   <voice>
     *: "Enter USB mass storage mode?"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMOVE_BEFORE
+  desc: in playlist viewer on+play menu
+  user: core
+  <source>
+    *: "Remove This And Before"
+  </source>
+  <dest>
+    *: "Remove This And Before"
+  </dest>
+  <voice>
+    *: "Remove This And Before"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMOVE_AFTER
+  desc: in playlist viewer on+play menu
+  user: core
+  <source>
+    *: "Remove This And After"
+  </source>
+  <dest>
+    *: "Remove This And After"
+  </dest>
+  <voice>
+    *: "Remove This And After"
   </voice>
 </phrase>

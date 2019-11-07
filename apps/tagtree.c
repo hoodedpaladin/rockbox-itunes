@@ -2011,10 +2011,20 @@ static bool insert_all_playlist(struct tree_context *c, int position, bool queue
         return false;
     }
 
-    if (position == PLAYLIST_REPLACE)
+    if ((position == PLAYLIST_REPLACE) || (position == PLAYLIST_REPLACE_SHUFFLED))
     {
         if (playlist_remove_all_tracks(NULL) == 0)
-            position = PLAYLIST_INSERT_LAST;
+        {
+            if (position == PLAYLIST_REPLACE)
+            {
+                position = PLAYLIST_INSERT_LAST;
+            }
+            else
+            {
+                playlist_set_last_shuffled_start();
+                position = PLAYLIST_INSERT_LAST_SHUFFLED;
+            }
+        }
         else
         {
             cpu_boost(false);
