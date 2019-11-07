@@ -76,7 +76,7 @@ void ata_device_init()
 #endif
 #endif
 
-    IDE0_PRI_TIMING0 = pio80mhz[0];
+    IDE0_PRI_TIMING0 = (pio80mhz[0] * 3) / 2;
     IDE0_PRI_TIMING1 = 0x80002150;
 }
 
@@ -84,7 +84,7 @@ void ata_device_init()
 void ata_set_pio_timings(int mode)
 {
     if (ata_disk_isssd())
-        IDE0_PRI_TIMING0 = pio80mhz[mode];
+        IDE0_PRI_TIMING0 = (pio80mhz[mode] * 3) / 2;
     else
         IDE0_PRI_TIMING0 = 0x10;
 }
