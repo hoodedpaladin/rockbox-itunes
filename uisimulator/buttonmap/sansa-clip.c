@@ -78,6 +78,7 @@ struct button_map bm[] = {
     { SDLK_KP4,          32, 211,  14, "Left" },
     { SDLK_KP6,         112, 211,  14, "Right" },
     { SDLK_KP2,          81, 231,  14, "Menu" },
+    { SDLK_KP1,          10, 10,  10, "Power" },
     { 0, 0, 0, 0, "None" }
 };
 #else
