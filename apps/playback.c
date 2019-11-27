@@ -1240,6 +1240,7 @@ static void playing_id3_sync(struct track_info *user_infop,
     {
         id3->elapsed = elapsed;
         id3->offset = offset;
+        id3->original_elapsed = elapsed;
     }
 
     id3_mutex_unlock();
