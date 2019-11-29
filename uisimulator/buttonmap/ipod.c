@@ -137,6 +137,14 @@ struct button_map bm[] = {
     { SDLK_KP_PLUS,   115, 412, 27, "Down" },
     { SDLK_KP8,        67, 303, 28, "Scroll Back" },
     { SDLK_KP2,       163, 303, 27, "Scroll Fwd" },
+#elif defined (IPOD_6G)
+    { SDLK_KP5,        173, 437, 27, "Select" },
+    { SDLK_KP4,        77, 435, 30, "Left" },
+    { SDLK_KP6,       270, 438, 27, "Right" },
+    { SDLK_KP_PERIOD,  173, 335, 30, "Menu" },
+    { SDLK_KP_PLUS,    171, 537, 27, "Play" },
+    { SDLK_KP8,        120, 375, 29, "Scroll Back" },
+    { SDLK_KP2,       230, 379, 29, "Scroll Fwd" },
 #endif
     { 0, 0, 0 , 0, "None" }
 };
