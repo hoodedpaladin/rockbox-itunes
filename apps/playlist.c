@@ -2165,6 +2165,49 @@ void playlist_shutdown(void)
         close(playlist->control_fd);
         playlist->control_fd = -1;
 
+        // Hack to avoid leaving playlists based on m3u files:
+        // If they're of reasonable length (< 500) just turn them into a list of appends
+        if (playlist->amount <= 500 && !(playlist->filename[0]==0 || (playlist->filename[0]=='/' && playlist->filename[1] == 0)))
+        {
+            int result;
+            struct playlist_track_info track_info;
+            int i;
+
+            DEBUGF("Re-doing playlist control file for %s/%s\n", playlist->filename, playlist->control_filename);
+
+            // Replace the filename-based playlist control file with just appends
+            playlist->control_fd = open(playlist->control_filename, O_CREAT|O_RDWR|O_TRUNC, 0666);
+            if (playlist->control_fd <= 0)
+            {
+                goto out;
+            }
+
+            // Control file header
+            result = fdprintf(playlist->control_fd, "P:%d::\n", PLAYLIST_CONTROL_FILE_VERSION);
+            if (result < 0)
+                goto out;
+
+            // One append line per track
+            for (i = 0; i < playlist->amount; i++)
+            {
+                result = playlist_get_track_info(playlist, (i + playlist->first_index) % playlist->amount, &track_info);
+                if (result < 0)
+                {
+                    break;
+                }
+
+                result = fdprintf(playlist->control_fd, "A:%d:%d:%s\n", i, i, track_info.filename);
+                if (result <= 0)
+                {
+                    break;
+                }
+            }
+
+            close(playlist->control_fd);
+            playlist->control_fd = -1;
+        }
+
+out:
         mutex_unlock(playlist->control_mutex);
     }
 }
