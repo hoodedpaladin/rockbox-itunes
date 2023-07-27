@@ -254,6 +254,7 @@ struct mp3entry {
     unsigned long filesize; /* without headers; in bytes */
     unsigned long length;   /* song length in ms */
     unsigned long elapsed;  /* ms played */
+    unsigned long original_elapsed;  /* starting point in ms */
 
     int lead_trim;          /* Number of samples to skip at the beginning */
     int tail_trim;          /* Number of samples to remove from the end */

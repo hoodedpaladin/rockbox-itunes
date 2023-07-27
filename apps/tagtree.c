@@ -979,21 +979,23 @@ static void tagtree_track_finish_event(unsigned short id, void *ev_data)
     {
         long playcount;
         long playtime;
+        long playtime_elapsed;
+        unsigned long starting_point = id3->original_elapsed;
 
+        id3->original_elapsed = 0;
         playcount = id3->playcount + 1;
 
         /* Ignore the last 15s (crossfade etc.) */
-        playtime = id3->playtime + MIN(id3->length, id3->elapsed + 15 * 1000);
+        if (id3->elapsed > starting_point)
+        {
+            playtime_elapsed = MIN(id3->elapsed - starting_point, id3->length);
+            playtime = id3->playtime + playtime_elapsed;
 
-        logf("ube:%s", id3->path);
-        logf("-> %ld/%ld", playcount, playtime);
-        logf("-> %ld/%ld/%ld", id3->elapsed, id3->length,
-             MIN(id3->length, id3->elapsed + 15 * 1000));
-
-        /* Queue the updates to the tagcache system. */
-        tagcache_update_numeric(tagcache_idx, tag_playcount, playcount);
-        tagcache_update_numeric(tagcache_idx, tag_playtime, playtime);
-        tagcache_update_numeric(tagcache_idx, tag_lastplayed, lastplayed);
+            /* Queue the updates to the tagcache system. */
+            tagcache_update_numeric(tagcache_idx, tag_playcount, playcount);
+            tagcache_update_numeric(tagcache_idx, tag_playtime, playtime);
+            tagcache_update_numeric(tagcache_idx, tag_lastplayed, lastplayed);
+        }
     }
 
     if (autoresume)
