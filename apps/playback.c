@@ -1446,6 +1446,7 @@ static void playing_id3_sync(struct track_info *user_infop, struct audio_resume_
         {
             id3->elapsed = resume_info->elapsed;
             id3->offset = resume_info->offset;
+            id3->original_elapsed = resume_info->elapsed;
         }
         id3->skip_resume_adjustments = skip_resume_adjustments;
     }
@@ -1457,6 +1458,7 @@ static void playing_id3_sync(struct track_info *user_infop, struct audio_resume_
         id3->offset = 0;
         id3->elapsed = 0;
         id3->skip_resume_adjustments = false;
+        id3->original_elapsed = 0;
     }
 
     pcm_play_unlock();
