@@ -807,6 +807,7 @@ static int treeplaylist_callback(int action,
                     return ACTION_EXIT_MENUITEM;
 
                 if ((selected_file_attr & FILE_ATTR_MASK) != FILE_ATTR_M3U &&
+                    (selected_file_attr & FILE_ATTR_MASK) != FILE_ATTR_AUDIO &&
                     (selected_file_attr & ATTR_DIRECTORY) == 0)
                     return ACTION_EXIT_MENUITEM;
             }
