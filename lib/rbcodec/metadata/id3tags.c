@@ -1155,6 +1155,12 @@ retry_with_limit:
                                            ? AA_FLAG_ID3_UNSYNC
                                            : AA_TYPE_UNKNOWN;
                 }
+                if ((entry->has_embedded_albumart) &&
+                    ((tr->tag_length == 4 && !memcmp( header, "APIC", 4)) ||
+                     (tr->tag_length == 3 && !memcmp( header, "PIC" , 3))))
+                {
+		    bufferpos -= (bytesread + 1);
+		}
 #endif
                 if( tr->ppFunc )
                     bufferpos = tr->ppFunc(entry, tag, bufferpos);
