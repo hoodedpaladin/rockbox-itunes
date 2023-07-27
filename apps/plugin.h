@@ -392,6 +392,7 @@ struct plugin_api {
                                      int item_number);
     void (*gui_synclist_add_item)(struct gui_synclist * lists);
     void (*gui_synclist_del_item)(struct gui_synclist * lists);
+    void (*gui_synclist_del_items)(struct gui_synclist * lists, int nb_items);
     bool (*gui_synclist_do_button)(struct gui_synclist * lists, int *action);
     void (*gui_synclist_set_title)(struct gui_synclist *lists, const char* title,
                                    enum themable_icons icon);

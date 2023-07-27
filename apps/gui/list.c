@@ -431,6 +431,24 @@ void gui_synclist_del_item(struct gui_synclist * gui_list)
 }
 
 /*
+ * Removes an item to the list (the callback will be asked for one less item)
+ * - gui_list : the list structure
+ */
+void gui_synclist_del_items(struct gui_synclist * gui_list, int nb_items)
+{
+    while (nb_items--)
+    {
+        if (gui_list->nb_items > 0)
+        {
+            if (gui_list->selected_item == gui_list->nb_items-1)
+                gui_list->selected_item--;
+            gui_list->nb_items--;
+        }
+    }
+    gui_synclist_select_item(gui_list, gui_list->selected_item);
+}
+
+/*
  * Set the title and title icon of the list. Setting title to NULL disables
  * both the title and icon. Use NOICON if there is no icon.
  */

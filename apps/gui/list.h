@@ -217,6 +217,7 @@ extern void gui_synclist_select_item(struct gui_synclist * lists,
                                      int item_number);
 extern void gui_synclist_add_item(struct gui_synclist * lists);
 extern void gui_synclist_del_item(struct gui_synclist * lists);
+extern void gui_synclist_del_items(struct gui_synclist * lists, int nb_items);
 extern void gui_synclist_set_title(struct gui_synclist * lists, const char * title,
                                    enum themable_icons icon);
 
