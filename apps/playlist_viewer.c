@@ -612,7 +612,8 @@ static enum pv_onplay_result onplay_menu(int index, struct gui_synclist *pplayli
                         ID2P(LANG_SHUFFLE),
                         ID2P(LANG_SAVE),
                         ID2P(LANG_PLAYLISTVIEWER_SETTINGS),
-                        ID2P(LANG_REMOVE_ALL_AFTER)
+                        ID2P(LANG_REMOVE_ALL_BEFORE),
+                        ID2P(LANG_REMOVE_ALL_AFTER),
 //#ifdef HAVE_TAGCACHE
 //                        ,ID2P(LANG_ONPLAY_PICTUREFLOW)
 //#endif
@@ -677,6 +678,11 @@ static enum pv_onplay_result onplay_menu(int index, struct gui_synclist *pplayli
 //                break;
 //#endif
             case 8:
+                /* remove all after*/
+                playlist_delete_all_before(viewer.playlist, current_track->index, pplaylist_lists);
+                ret = PV_ONPLAY_CHANGED;
+                break;
+            case 9:
                 /* remove all after*/
                 playlist_delete_all_after(viewer.playlist, current_track->index, pplaylist_lists);
                 ret = PV_ONPLAY_CHANGED;

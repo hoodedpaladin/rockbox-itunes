@@ -2246,7 +2246,6 @@ static int remove_tracks_after_unlocked(struct playlist_info* playlist,
     return 0;
 }
 
-
 /*
  * Delete all tracks at specified index and after.
  */
@@ -2287,6 +2286,93 @@ out:
     if (amount_removed > 0)
     {
         gui_synclist_del_items(pplaylist_lists, amount_removed);
+    }
+
+    return result;
+}
+
+/*
+ * remove track at specified position and before
+ */
+static int remove_tracks_before_unlocked(struct playlist_info* playlist,
+                                        int position)
+{
+    int result;
+
+    if (playlist->amount <= 0)
+        return -1;
+
+    // Removing the whole list? Just use the other code
+    if (((position +1) % playlist->amount) == playlist->first_index)
+    {
+        return remove_all_tracks_unlocked(playlist, true);
+    }
+
+    while (true)
+    {
+        if ((position == playlist->first_index) && (position == playlist->index))
+            break;
+
+        int removal_offset = playlist->first_index;
+        if (removal_offset == playlist->index)
+        {
+            if (playlist->amount == 1)
+                break;
+            removal_offset = (removal_offset + 1) % playlist->amount;
+        }
+        result = remove_track_unlocked(playlist, removal_offset, true);
+        if (result < 0)
+            return result;
+        if (removal_offset == position)
+            break;
+        if (removal_offset < position)
+            position--;
+    }
+
+    return 0;
+}
+
+/*
+ * Delete all tracks at specified index and after.
+ */
+int playlist_delete_all_before(struct playlist_info* playlist, int index, struct gui_synclist *pplaylist_lists)
+{
+    int result = 0;
+    int previous_amount;
+    int amount_removed = 0;
+
+    if (!playlist)
+        playlist = &current_playlist;
+
+    dc_thread_stop(playlist);
+    playlist_write_lock(playlist);
+
+    if (check_control(playlist) < 0)
+    {
+        notify_control_access_error();
+        result = -1;
+        goto out;
+    }
+
+    previous_amount = playlist->amount;
+    result = remove_tracks_before_unlocked(playlist, index);
+    if (result < 0)
+        goto out;
+    amount_removed = previous_amount - playlist->amount;
+
+out:
+    playlist_write_unlock(playlist);
+    dc_thread_start(playlist, false);
+
+    if (result != -1 && (audio_status() & AUDIO_STATUS_PLAY) &&
+        playlist->started)
+        audio_flush_and_reload_tracks();
+
+    // Outside the lock, update the GUI as necessary
+    if (amount_removed > 0)
+    {
+        gui_synclist_del_items(pplaylist_lists, amount_removed);
+        gui_synclist_select_item(pplaylist_lists, 0);
     }
 
     return result;
