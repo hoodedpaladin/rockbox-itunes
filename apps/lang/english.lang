@@ -17197,3 +17197,31 @@
     *: "Filter Type"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_REMOVE_ALL_AFTER
+  desc: in PictureFlow Main Menu
+  user: core
+  <source>
+    *: "Remove This And After"
+  </source>
+  <dest>
+    *: "Remove This And After"
+  </dest>
+  <voice>
+    *: "Remove This And After"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_REMOVE_ALL_BEFORE
+  desc: in PictureFlow Main Menu
+  user: core
+  <source>
+    *: "Remove This And Before"
+  </source>
+  <dest>
+    *: "Remove This And Before"
+  </dest>
+  <voice>
+    *: "Remove This And Before"
+  </voice>
+</phrase>

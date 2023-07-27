@@ -692,7 +692,7 @@ static enum pv_context_result delete_track(int current_track_index,
     return PV_CONTEXT_MODIFIED;
 }
 
-static enum pv_context_result context_menu(int index)
+static enum pv_context_result context_menu(int index, struct gui_synclist *pplaylist_lists)
 {
     struct playlist_entry *current_track = playlist_buffer_get_track(&viewer.buffer,
                                                                      index);
@@ -705,9 +705,11 @@ static enum pv_context_result context_menu(int index)
                         ID2P(LANG_MENU_SHOW_ID3_INFO),
                         ID2P(LANG_SHUFFLE), ID2P(LANG_SAVE),
                         ID2P(LANG_PLAYLISTVIEWER_SETTINGS)
-#ifdef HAVE_TAGCACHE
-                        ,ID2P(LANG_ONPLAY_PICTUREFLOW)
-#endif
+                        ,ID2P(LANG_REMOVE_ALL_BEFORE)
+                        ,ID2P(LANG_REMOVE_ALL_AFTER)
+//#ifdef HAVE_TAGCACHE
+//                        ,ID2P(LANG_ONPLAY_PICTUREFLOW)
+//#endif
                         );
     int sel = do_menu(&menu_items, NULL, NULL, false);
     if (sel == MENU_ATTACHED_USB)
@@ -759,10 +761,18 @@ static enum pv_context_result context_menu(int index)
                     return (sel == global_settings.playlist_viewer_track_display) ?
                            PV_CONTEXT_UNCHANGED : PV_CONTEXT_PL_UPDATE;
             }
-#ifdef HAVE_TAGCACHE
+//#ifdef HAVE_TAGCACHE
+//            case 8:
+//                return open_pictureflow(current_track);
+//#endif
             case 8:
-                return open_pictureflow(current_track);
-#endif
+                /* remove all after*/
+                playlist_delete_all_before(viewer.playlist, current_track->index, pplaylist_lists);
+                return PV_CONTEXT_PL_UPDATE;
+            case 9:
+                /* remove all after*/
+                playlist_delete_all_after(viewer.playlist, current_track->index, pplaylist_lists);
+                return PV_CONTEXT_PL_UPDATE;
         }
     }
     return PV_CONTEXT_UNCHANGED;
@@ -1119,7 +1129,7 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
             }
             case ACTION_STD_CONTEXT:
             {
-                int pv_context_result = context_menu(viewer.selected_track);
+                int pv_context_result = context_menu(viewer.selected_track, &playlist_lists);
 
                 if (pv_context_result == PV_CONTEXT_USB)
                 {
