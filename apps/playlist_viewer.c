@@ -142,7 +142,7 @@ static void format_line(const struct playlist_entry* track, char* str,
                         int len);
 
 static bool update_playlist(bool force);
-static enum pv_onplay_result onplay_menu(int index);
+static enum pv_onplay_result onplay_menu(int index, struct gui_synclist *pplaylist_lists);
 
 static void close_playlist_viewer(void);
 
@@ -601,7 +601,7 @@ static enum pv_onplay_result delete_track(int current_track_index,
 }
 
 /* Menu of playlist commands.  Invoked via ON+PLAY on main viewer screen. */
-static enum pv_onplay_result onplay_menu(int index)
+static enum pv_onplay_result onplay_menu(int index, struct gui_synclist *pplaylist_lists)
 {
     int result, ret = PV_ONPLAY_UNCHANGED;
     struct playlist_entry * current_track =
@@ -611,10 +611,11 @@ static enum pv_onplay_result onplay_menu(int index)
                         ID2P(LANG_REMOVE), ID2P(LANG_MOVE), ID2P(LANG_MENU_SHOW_ID3_INFO),
                         ID2P(LANG_SHUFFLE),
                         ID2P(LANG_SAVE),
-                        ID2P(LANG_PLAYLISTVIEWER_SETTINGS)
-#ifdef HAVE_TAGCACHE
-                        ,ID2P(LANG_ONPLAY_PICTUREFLOW)
-#endif
+                        ID2P(LANG_PLAYLISTVIEWER_SETTINGS),
+                        ID2P(LANG_REMOVE_ALL_AFTER)
+//#ifdef HAVE_TAGCACHE
+//                        ,ID2P(LANG_ONPLAY_PICTUREFLOW)
+//#endif
                         );
 
     bool current_was_playing = (current_track->index == viewer.current_playing_track);
@@ -670,11 +671,16 @@ static enum pv_onplay_result onplay_menu(int index)
                 result = do_menu(&viewer_settings_menu, NULL, NULL, false);
                 ret = (result == MENU_ATTACHED_USB) ? PV_ONPLAY_USB : PV_ONPLAY_UNCHANGED;
                 break;
-#ifdef HAVE_TAGCACHE
+//#ifdef HAVE_TAGCACHE
+//            case 8:
+//                ret = open_pictureflow(current_track);
+//                break;
+//#endif
             case 8:
-                ret = open_pictureflow(current_track);
+                /* remove all after*/
+                playlist_delete_all_after(viewer.playlist, current_track->index, pplaylist_lists);
+                ret = PV_ONPLAY_CHANGED;
                 break;
-#endif
         }
     }
     return ret;
@@ -993,7 +999,7 @@ enum playlist_viewer_result playlist_viewer_ex(const char* filename,
             }
             case ACTION_STD_CONTEXT:
             {
-                int pv_onplay_result = onplay_menu(viewer.selected_track);
+                int pv_onplay_result = onplay_menu(viewer.selected_track, &playlist_lists);
 
                 if (pv_onplay_result == PV_ONPLAY_USB)
                 {

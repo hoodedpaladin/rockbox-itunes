@@ -2206,6 +2206,93 @@ out:
 }
 
 /*
+ * remove track at specified position and after
+ */
+static int remove_tracks_after_unlocked(struct playlist_info* playlist,
+                                        int position)
+{
+    int result;
+
+    if (playlist->amount <= 0)
+        return -1;
+
+    // Removing the whole list? Just use the other code
+    if (position == playlist->first_index)
+    {
+        return remove_all_tracks_unlocked(playlist, true);
+    }
+
+    while (true)
+    {
+        // Removal position wraps around the end of the array if the amount has decreased
+        // And it skips over the currently playing track
+        // But don't let the quit condition pass you by when you skip the currently playing track!
+        position = position % playlist->amount;
+        if (position == playlist->first_index)
+            break;
+        if (position == playlist->index)
+        {
+            position = (position + 1) % playlist->amount;
+            if (position == playlist->first_index)
+                break;
+        }
+
+
+        result = remove_track_unlocked(playlist, position, true);
+        if (result < 0)
+            return result;
+    }
+
+    return 0;
+}
+
+
+/*
+ * Delete all tracks at specified index and after.
+ */
+int playlist_delete_all_after(struct playlist_info* playlist, int index, struct gui_synclist *pplaylist_lists)
+{
+    int result = 0;
+    int previous_amount;
+    int amount_removed = 0;
+
+    if (!playlist)
+        playlist = &current_playlist;
+
+    dc_thread_stop(playlist);
+    playlist_write_lock(playlist);
+
+    if (check_control(playlist) < 0)
+    {
+        notify_control_access_error();
+        result = -1;
+        goto out;
+    }
+
+    previous_amount = playlist->amount;
+    result = remove_tracks_after_unlocked(playlist, index);
+    if (result < 0)
+        goto out;
+    amount_removed = previous_amount - playlist->amount;
+
+out:
+    playlist_write_unlock(playlist);
+    dc_thread_start(playlist, false);
+
+    if (result != -1 && (audio_status() & AUDIO_STATUS_PLAY) &&
+        playlist->started)
+        audio_flush_and_reload_tracks();
+
+    // Outside the lock, update the GUI as necessary
+    if (amount_removed > 0)
+    {
+        gui_synclist_del_items(pplaylist_lists, amount_removed);
+    }
+
+    return result;
+}
+
+/*
  * Search specified directory for tracks and notify via callback.  May be
  * called recursively.
  */

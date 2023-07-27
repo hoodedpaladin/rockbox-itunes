@@ -29,6 +29,7 @@
 #include "metadata.h"
 #include "rbpaths.h"
 #include "chunk_alloc.h"
+#include "gui/list.h"
 
 #define PLAYLIST_ATTR_QUEUED    0x01
 #define PLAYLIST_ATTR_INSERTED  0x02
@@ -139,6 +140,7 @@ int playlist_insert_playlist(struct playlist_info* playlist, const char *filenam
                              int position, bool queue);
 void playlist_skip_entry(struct playlist_info *playlist, int steps);
 int playlist_delete(struct playlist_info* playlist, int index);
+int playlist_delete_all_after(struct playlist_info* playlist, int index, struct gui_synclist *pplaylist_lists);
 int playlist_move(struct playlist_info* playlist, int index, int new_index);
 int playlist_randomise(struct playlist_info* playlist, unsigned int seed,
                        bool start_current);
