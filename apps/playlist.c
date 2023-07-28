@@ -1347,11 +1347,9 @@ static int add_track_to_playlist_unlocked(struct playlist_info* playlist,
         }
         case PLAYLIST_INSERT_LAST_SHUFFLED:
         {
-            int playlist_end = playlist->first_index > 0 ?
-                               playlist->first_index : playlist->amount;
-
             int newpos = playlist->last_shuffled_start +
-                rand() % (playlist_end - playlist->last_shuffled_start + 1);
+                rand() % (playlist->last_shuffled_start + 1);
+            playlist->shuffled_added_so_far += 1;
 
             position = insert_position = newpos;
             break;
@@ -3842,6 +3840,7 @@ void playlist_set_last_shuffled_start(void)
     playlist_write_lock(playlist);
     playlist->last_shuffled_start = playlist->first_index > 0 ?
                                     playlist->first_index : playlist->amount;
+    playlist->shuffled_added_so_far = 0;
     playlist_write_unlock(playlist);
 }
 
