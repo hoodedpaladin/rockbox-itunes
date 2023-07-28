@@ -80,6 +80,7 @@ struct playlist_info
     bool started;       /* has playlist been started?               */
     int last_shuffled_start; /* number of tracks when insert last
                                     shuffled command start */
+    int shuffled_added_so_far; // tracks inserted so far
     int  seed;           /* shuffle seed                            */
     struct mutex mutex; /* mutex for control file access    */
 #ifdef HAVE_DIRCACHE
