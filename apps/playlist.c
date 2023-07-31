@@ -1280,6 +1280,8 @@ static int remove_all_tracks_unlocked(struct playlist_info *playlist, bool write
  *                                  current playing track and end of playlist
  *  PLAYLIST_INSERT_LAST_SHUFFLED - Add tracks in random order to the end of
  *                                  the playlist.
+ *  PLAYLIST_INSERT_NEXT_SHUFFLED - Add the tracks in random order after the
+ *                                  current playing track
  *  PLAYLIST_REPLACE              - Erase current playlist, Cue the current track
  *                                  and inster this track at the end.
  */
@@ -1359,6 +1361,7 @@ static int add_track_to_playlist_unlocked(struct playlist_info* playlist,
             break;
         }
         case PLAYLIST_INSERT_LAST_SHUFFLED:
+        case PLAYLIST_INSERT_NEXT_SHUFFLED:
         {
             int newpos = playlist->last_shuffled_start +
                 rand() % (playlist->shuffled_added_so_far + 1);
@@ -3948,6 +3951,29 @@ void playlist_set_last_shuffled_start(void)
         playlist->last_shuffled_start = playlist->amount;
     else
         playlist->last_shuffled_start = playlist->first_index;
+    playlist->shuffled_added_so_far = 0;
+    playlist_write_unlock(playlist);
+}
+
+/* set playlist->last_shuffle_start to playlist->index for
+   PLAYLIST_INSERT_NEXT_SHUFFLED command purposes*/
+void playlist_set_next_shuffled_start(void)
+{
+    struct playlist_info* playlist = &current_playlist;
+
+    playlist_write_lock(playlist);
+    if (playlist->started)
+    {
+        playlist->last_shuffled_start = playlist->index + 1;
+    }
+    else
+    {
+        // If it's not started - let's duplicate the code from playlist_set_last_shuffled_start() without the lock
+        if (playlist->first_index == 0)
+            playlist->last_shuffled_start = playlist->amount;
+        else
+            playlist->last_shuffled_start = playlist->first_index;
+    }
     playlist->shuffled_added_so_far = 0;
     playlist_write_unlock(playlist);
 }
