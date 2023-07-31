@@ -241,6 +241,7 @@ static struct add_to_pl_param addtopl_insert_first     = {PLAYLIST_INSERT_FIRST,
 static struct add_to_pl_param addtopl_insert_last      = {PLAYLIST_INSERT_LAST, PL_NONE};
 static struct add_to_pl_param addtopl_insert_shuf      = {PLAYLIST_INSERT_SHUFFLED, PL_NONE};
 static struct add_to_pl_param addtopl_insert_last_shuf = {PLAYLIST_INSERT_LAST_SHUFFLED, PL_NONE};
+static struct add_to_pl_param addtopl_insert_next_shuf = {PLAYLIST_INSERT_NEXT_SHUFFLED, PL_NONE};
 
 static struct add_to_pl_param addtopl_queue            = {PLAYLIST_INSERT, PL_QUEUE};
 static struct add_to_pl_param addtopl_queue_first      = {PLAYLIST_INSERT_FIRST, PL_QUEUE};
@@ -317,11 +318,14 @@ static int add_to_playlist(void* arg)
 
     /* always set seed before inserting shuffled */
     if (position == PLAYLIST_INSERT_SHUFFLED ||
-        position == PLAYLIST_INSERT_LAST_SHUFFLED)
+        position == PLAYLIST_INSERT_LAST_SHUFFLED ||
+        position == PLAYLIST_INSERT_NEXT_SHUFFLED)
     {
         srand(current_tick);
         if (position == PLAYLIST_INSERT_LAST_SHUFFLED)
             playlist_set_last_shuffled_start();
+        if (position == PLAYLIST_INSERT_NEXT_SHUFFLED)
+            playlist_set_next_shuffled_start();
     }
 
     op_playlist_insert_selected(position, queue);
@@ -374,6 +378,9 @@ MENUITEM_FUNCTION_W_PARAM(i_shuf_pl_item, 0, ID2P(LANG_ADD_SHUFFLED),
 MENUITEM_FUNCTION_W_PARAM(i_last_shuf_pl_item, 0, ID2P(LANG_PLAY_LAST_SHUFFLED),
                   add_to_playlist, &addtopl_insert_last_shuf,
                   treeplaylist_callback, Icon_Playlist);
+MENUITEM_FUNCTION_W_PARAM(i_next_shuf_pl_item, 0, ID2P(LANG_PLAY_NEXT_SHUFFLED),
+                  add_to_playlist, &addtopl_insert_next_shuf,
+                  treeplaylist_callback, Icon_Playlist);
 /* queue items */
 MENUITEM_FUNCTION_W_PARAM(q_pl_item, 0, ID2P(LANG_QUEUE),
                   add_to_playlist, &addtopl_queue,
@@ -418,6 +425,7 @@ MAKE_ONPLAYMENU(tree_playlist_menu, ID2P(LANG_PLAYING_NEXT),
                 &i_last_pl_item,
                 &i_shuf_pl_item,
                 &i_last_shuf_pl_item,
+                &i_next_shuf_pl_item,
 
                 /* queue */
                 &q_first_pl_item,
@@ -473,7 +481,8 @@ static int treeplaylist_callback(int action,
             }
 
             if (param->position == PLAYLIST_INSERT_SHUFFLED ||
-                param->position == PLAYLIST_INSERT_LAST_SHUFFLED)
+                param->position == PLAYLIST_INSERT_LAST_SHUFFLED ||
+                param->position == PLAYLIST_INSERT_NEXT_SHUFFLED)
             {
                 if (!global_settings.show_shuffled_adding_options)
                     return ACTION_EXIT_MENUITEM;

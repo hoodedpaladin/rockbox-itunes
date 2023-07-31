@@ -67,6 +67,7 @@ enum {
     PLAYLIST_REPLACE = -6,
     PLAYLIST_INSERT_LAST_SHUFFLED = -7,
     PLAYLIST_INSERT_LAST_ROTATED = -8
+    ,PLAYLIST_INSERT_NEXT_SHUFFLED = -9
 };
 
 struct playlist_info
@@ -139,6 +140,7 @@ int playlist_update_resume_info(const struct mp3entry* id3);
 int playlist_get_display_index(void);
 int playlist_amount(void);
 void playlist_set_last_shuffled_start(void);
+void playlist_set_next_shuffled_start(void);
 struct playlist_info *playlist_get_current(void);
 bool playlist_dynamic_only(void);
 
