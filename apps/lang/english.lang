@@ -16669,3 +16669,17 @@
     *: "Remove This And Before"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_PLAY_NEXT_SHUFFLED
+  desc: used in the onplay menu
+  user: core
+  <source>
+    *: "Play Next Shuffled"
+  </source>
+  <dest>
+    *: "Play Next Shuffled"
+  </dest>
+  <voice>
+    *: "Play Next Shuffled"
+  </voice>
+</phrase>

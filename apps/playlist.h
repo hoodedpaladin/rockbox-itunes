@@ -58,7 +58,8 @@ enum {
     PLAYLIST_INSERT_FIRST = -4,
     PLAYLIST_INSERT_SHUFFLED = -5,
     PLAYLIST_REPLACE = -6,
-    PLAYLIST_INSERT_LAST_SHUFFLED = -7
+    PLAYLIST_INSERT_LAST_SHUFFLED = -7,
+    PLAYLIST_INSERT_NEXT_SHUFFLED = -8,
 };
 
 struct playlist_info
@@ -121,6 +122,7 @@ int playlist_update_resume_info(const struct mp3entry* id3);
 int playlist_get_display_index(void);
 int playlist_amount(void);
 void playlist_set_last_shuffled_start(void);
+void playlist_set_next_shuffled_start(void);
 struct playlist_info *playlist_get_current(void);
 
 /* Exported functions for all playlists.  Pass NULL for playlist_info
