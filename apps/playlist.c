@@ -405,12 +405,12 @@ static int update_control_unlocked(struct playlist_info* playlist,
     switch (command)
     {
     case PLAYLIST_COMMAND_PLAYLIST:
-        result = fdprintf(fd, "P:%d:%s:%s\n", i1, s1, s2);
+        result = fdprintf(fd, "%c:%d:%s:%s\n", PLAYLIST_COMMAND_LETTER_PLAYLIST, i1, s1, s2);
         break;
     case PLAYLIST_COMMAND_ADD:
     case PLAYLIST_COMMAND_QUEUE:
         result = fdprintf(fd, "%c:%d:%d:",
-                          command == PLAYLIST_COMMAND_ADD ? 'A' : 'Q', i1, i2);
+                          command == PLAYLIST_COMMAND_ADD ? PLAYLIST_COMMAND_LETTER_ADD : PLAYLIST_COMMAND_LETTER_QUEUE, i1, i2);
         if (result > 0)
         {
             *seekpos = lseek(fd, 0, SEEK_CUR);
@@ -418,19 +418,19 @@ static int update_control_unlocked(struct playlist_info* playlist,
         }
         break;
     case PLAYLIST_COMMAND_DELETE:
-        result = fdprintf(fd, "D:%d\n", i1);
+        result = fdprintf(fd, "%c:%d\n", PLAYLIST_COMMAND_LETTER_DELETE, i1);
         break;
     case PLAYLIST_COMMAND_SHUFFLE:
-        result = fdprintf(fd, "S:%d:%d\n", i1, i2);
+        result = fdprintf(fd, "%c:%d:%d\n", PLAYLIST_COMMAND_LETTER_SHUFFLE, i1, i2);
         break;
     case PLAYLIST_COMMAND_UNSHUFFLE:
-        result = fdprintf(fd, "U:%d\n", i1);
+        result = fdprintf(fd, "%c:%d\n", PLAYLIST_COMMAND_LETTER_UNSHUFFLE, i1);
         break;
     case PLAYLIST_COMMAND_RESET:
-        result = write(fd, "R\n", 2);
+        result = fdprintf(fd, "%c\n", PLAYLIST_COMMAND_LETTER_RESET);
         break;
     case PLAYLIST_COMMAND_CLEAR:
-        result = write(fd, "C\n", 2);
+        result = fdprintf(fd, "%c\n", PLAYLIST_COMMAND_LETTER_CLEAR);
         break;
     default:
         return -1;
@@ -726,7 +726,7 @@ static int recreate_control_unlocked(struct playlist_info* playlist)
             read_line(temp_fd, inserted_file, sizeof(inserted_file));
 
             result = fdprintf(playlist->control_fd, "%c:%d:%d:",
-                queue?'Q':'A', i, playlist->last_insert_pos);
+                queue?PLAYLIST_COMMAND_LETTER_QUEUE:PLAYLIST_COMMAND_LETTER_ADD, i, playlist->last_insert_pos);
             if (result > 0)
             {
                 /* save the position in file where name is written */
@@ -805,7 +805,7 @@ static int add_indices_to_playlist(struct playlist_info* playlist,
             {
                 store_index = false;
 
-                if(*p != '#')
+                if(*p != PLAYLIST_COMMAND_LETTER_COMMENT)
                 {
                     if ( playlist->amount >= playlist->max_playlist_size ) {
                         notify_buffer_full();
@@ -2750,7 +2750,7 @@ int playlist_insert_playlist(struct playlist_info* playlist, const char *filenam
         if (action_userabort(TIMEOUT_NOBLOCK))
             break;
 
-        if (temp_buf[0] != '#' && temp_buf[0] != '\0')
+        if (temp_buf[0] != PLAYLIST_COMMAND_LETTER_COMMENT && temp_buf[0] != '\0')
         {
             int insert_pos;
 
@@ -3540,7 +3540,7 @@ int playlist_resume(void)
 
                 switch (*p)
                 {
-                    case 'P':
+                    case PLAYLIST_COMMAND_LETTER_PLAYLIST:
                         /* playlist can only be specified once */
                         if (!first)
                         {
@@ -3551,28 +3551,28 @@ int playlist_resume(void)
 
                         current_command = PLAYLIST_COMMAND_PLAYLIST;
                         break;
-                    case 'A':
+                    case PLAYLIST_COMMAND_LETTER_ADD:
                         current_command = PLAYLIST_COMMAND_ADD;
                         break;
-                    case 'Q':
+                    case PLAYLIST_COMMAND_LETTER_QUEUE:
                         current_command = PLAYLIST_COMMAND_QUEUE;
                         break;
-                    case 'D':
+                    case PLAYLIST_COMMAND_LETTER_DELETE:
                         current_command = PLAYLIST_COMMAND_DELETE;
                         break;
-                    case 'S':
+                    case PLAYLIST_COMMAND_LETTER_SHUFFLE:
                         current_command = PLAYLIST_COMMAND_SHUFFLE;
                         break;
-                    case 'U':
+                    case PLAYLIST_COMMAND_LETTER_UNSHUFFLE:
                         current_command = PLAYLIST_COMMAND_UNSHUFFLE;
                         break;
-                    case 'R':
+                    case PLAYLIST_COMMAND_LETTER_RESET:
                         current_command = PLAYLIST_COMMAND_RESET;
                         break;
-                    case 'C':
+                    case PLAYLIST_COMMAND_LETTER_CLEAR:
                         current_command = PLAYLIST_COMMAND_CLEAR;
                         break;
-                    case '#':
+                    case PLAYLIST_COMMAND_LETTER_COMMENT:
                         current_command = PLAYLIST_COMMAND_COMMENT;
                         break;
                     default:
