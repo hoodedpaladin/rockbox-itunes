@@ -89,6 +89,7 @@ struct playlist_info
     int  amount;         /* number of tracks in the index           */
     int  last_insert_pos; /* last position we inserted a track      */
     bool started;       /* has playlist been started?               */
+    bool complex_command; // Something other than add/queue
     int last_shuffled_start; /* number of tracks when insert last
                                     shuffled command start */
     int shuffled_added_so_far; // tracks inserted so far
@@ -116,6 +117,7 @@ void playlist_init(void) INIT_ATTR;
 void playlist_shutdown(void);
 int playlist_create(const char *dir, const char *file);
 int playlist_resume(void);
+int playlist_emancipate(void);
 int playlist_shuffle(int random_seed, int start_index);
 unsigned int playlist_get_filename_crc32(struct playlist_info *playlist,
                                          int index);

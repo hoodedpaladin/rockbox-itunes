@@ -290,6 +290,7 @@ bool settings_parseline(char* line, char** name, char** value)
 
 static void system_flush(void)
 {
+    playlist_emancipate();
     playlist_shutdown();
     tree_flush();
     open_plugin_cache_flush();

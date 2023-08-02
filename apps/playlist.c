@@ -419,18 +419,23 @@ static int update_control_unlocked(struct playlist_info* playlist,
         break;
     case PLAYLIST_COMMAND_DELETE:
         result = fdprintf(fd, "%c:%d\n", PLAYLIST_COMMAND_LETTER_DELETE, i1);
+        playlist->complex_command = true;
         break;
     case PLAYLIST_COMMAND_SHUFFLE:
         result = fdprintf(fd, "%c:%d:%d\n", PLAYLIST_COMMAND_LETTER_SHUFFLE, i1, i2);
+        playlist->complex_command = true;
         break;
     case PLAYLIST_COMMAND_UNSHUFFLE:
         result = fdprintf(fd, "%c:%d\n", PLAYLIST_COMMAND_LETTER_UNSHUFFLE, i1);
+        playlist->complex_command = true;
         break;
     case PLAYLIST_COMMAND_RESET:
         result = fdprintf(fd, "%c\n", PLAYLIST_COMMAND_LETTER_RESET);
+        playlist->complex_command = true;
         break;
     case PLAYLIST_COMMAND_CLEAR:
         result = fdprintf(fd, "%c\n", PLAYLIST_COMMAND_LETTER_CLEAR);
+        playlist->complex_command = true;
         break;
     default:
         return -1;
@@ -4114,4 +4119,92 @@ int playlist_update_resume_info(const struct mp3entry* id3)
     }
 
     return 0;
+}
+
+// Reconstruct the control file on shutdown
+// We want to preserve its state even if an external tool changes the
+// underlying playlist
+int playlist_emancipate(void)
+{
+    struct playlist_info* playlist = &current_playlist;
+    int fd;
+    int i, index;
+    int count = 0;
+    char tmp_buf[MAX_PATH+1];
+    int result = 0;
+    const char *filename = PLAYLIST_CONTROL_FILE "_tmp";
+
+    // Do we want to modify the control file?
+    if (playlist == NULL)
+        return 0;
+    if (playlist->amount <= 0)
+        return 0;
+    if (playlist->amount > 300)
+        return 0;
+    if (!playlist->complex_command)
+    {
+        if (playlist->filename[0] == '\0' || (playlist->filename[0] == '/' && playlist->filename[1] == '\0'))
+            return 0;
+        if (!playlist->dirplay)
+            return 0;
+    }
+
+    playlist_write_lock(playlist);
+
+    fd = open(filename, O_CREAT|O_WRONLY|O_TRUNC, 0666);
+
+    if (fd < 0)
+    {
+        notify_access_error();
+        result = -1;
+        goto failure;
+    }
+
+    cpu_boost(true);
+
+    // Write playlist header
+    result = fdprintf(fd, "%c:%d::\n", PLAYLIST_COMMAND_LETTER_PLAYLIST, PLAYLIST_CONTROL_FILE_VERSION);
+    if (result < 0)
+    {
+        goto failure;
+    }
+
+    // Write each file as an add command
+    index = playlist->first_index;
+    for (i=0; i<playlist->amount; i++)
+    {
+        if (get_track_filename(playlist, index, tmp_buf, sizeof(tmp_buf)))
+        {
+            result = -1;
+            break;
+        }
+
+        result = fdprintf(fd, "%c:%d:%d:%s\n", PLAYLIST_COMMAND_LETTER_ADD, i, i, tmp_buf);
+        if (result < 0)
+        {
+            break;
+        }
+
+        count++;
+
+        yield();
+
+        index = (index+1)%playlist->amount;
+    }
+
+failure:
+    close(fd);
+    fd = -1;
+    cpu_boost(false);
+
+    // Close the control playlist and move temp file
+    if (playlist->control_fd >= 0)
+        pl_close_control(playlist);
+
+    if (result >= 0)
+        rename(filename, PLAYLIST_CONTROL_FILE);
+
+    playlist_write_unlock(playlist);
+
+    return result;
 }
