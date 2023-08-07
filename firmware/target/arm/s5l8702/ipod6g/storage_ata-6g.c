@@ -52,6 +52,10 @@
 #define CMD_IDENTIFY               0xEC
 #define CMD_SET_FEATURES           0xEF
 
+// Increase the timeouts to improve stability?
+#define NEW_TIMEOUTS
+
+#ifndef NEW_TIMEOUTS
 #define CEATA_POWERUP_TIMEOUT 20000000
 #define CEATA_COMMAND_TIMEOUT 1000000
 #define CEATA_DAT_NONBUSY_TIMEOUT 5000000
@@ -65,6 +69,21 @@
 #define ATA_RW_TRANSFER_TIMEOUT            500000
 #define ATA_SOFT_RESET_TIMEOUT            3000000
 #define ATA_SMART_TIMEOUT                10000000
+#else //ifndef NEW_TIMEOUTS
+#define CEATA_POWERUP_TIMEOUT 40000000
+#define CEATA_COMMAND_TIMEOUT 2000000
+#define CEATA_DAT_NONBUSY_TIMEOUT 10000000
+#define CEATA_MMC_RCA 1
+
+#define CEATA_MMC_SEND_COMMAND_SLEEP_TIME    2000
+#define ATA_WAIT_FOR_IDENTIFY_TIMEOUT    20000000
+#define ATA_WAIT_FOR_FEATURE_TIMEOUT      4000000
+#define ATA_POWERDOWN_TIMEOUT             2000000
+#define ATA_RW_TIMEOUT                     200000
+#define ATA_RW_TRANSFER_TIMEOUT           1000000
+#define ATA_SOFT_RESET_TIMEOUT            6000000
+#define ATA_SMART_TIMEOUT                20000000
+#endif //ifndef NEW_TIMEOUTS
 
 
 /** static, private data **/
