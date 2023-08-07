@@ -534,7 +534,7 @@ static bool read_mp4_tags(int fd, struct mp3entry* id3,
                 tag_name[rd_ret] = 0;
 
                 static const char *tn_options[] = {"composer", "iTunSMPB",
-                                   "musicbrainz track id", "album artist", NULL};
+                                   "musicbrainz track id", "album artist", "ITID", NULL};
 
                 int tn_op = string_option(tag_name, tn_options, true);
 
@@ -566,7 +566,12 @@ static bool read_mp4_tags(int fd, struct mp3entry* id3,
                 {
                     read_mp4_tag_string(fd, size, &buffer, &buffer_left, 
                         &id3->albumartist);
-                }   
+                }
+                else if (tn_op == 4) /*album artist*/
+                {
+                    read_mp4_tag_string(fd, size, &buffer, &buffer_left,
+                        &id3->itid);
+                }
                 else
                 {
                     char* any = NULL;
