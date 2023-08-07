@@ -48,6 +48,7 @@
 #define CMD_READ_DMA               0xC8
 #define CMD_WRITE_DMA              0xCA
 #define CMD_STANDBY_IMMEDIATE      0xE0
+#define CMD_FLUSH_CACHE            0xE7
 #define CMD_IDENTIFY               0xEC
 #define CMD_SET_FEATURES           0xEF
 
@@ -714,20 +715,36 @@ static void ata_power_down(void)
     if (ceata)
     {
         memset(ceata_taskfile, 0, 16);
+        // Flush Cache
+        ceata_taskfile[0xf] = CMD_FLUSH_CACHE;
+        ceata_wait_idle();
+        ceata_write_multiple_register(0, ceata_taskfile, 16);
+        ceata_wait_idle();
+        sleep(2 * HZ);
+
+        // Standby Immediate
         ceata_taskfile[0xf] = CMD_STANDBY_IMMEDIATE;
         ceata_wait_idle();
         ceata_write_multiple_register(0, ceata_taskfile, 16);
         ceata_wait_idle();
-        sleep(HZ);
+        sleep(2 * HZ);
         PWRCON(0) |= (1 << 9);
     }
     else
     {
+        // Flush Cache
+        ata_wait_for_rdy(ATA_POWERDOWN_TIMEOUT);
+        ata_write_cbr(&ATA_PIO_DVR, 0);
+        ata_write_cbr(&ATA_PIO_CSD, CMD_FLUSH_CACHE);
+        ata_wait_for_rdy(ATA_POWERDOWN_TIMEOUT);
+        sleep(2 * HZ);
+
+        // Standby Immediate
         ata_wait_for_rdy(ATA_POWERDOWN_TIMEOUT);
         ata_write_cbr(&ATA_PIO_DVR, 0);
         ata_write_cbr(&ATA_PIO_CSD, CMD_STANDBY_IMMEDIATE);
         ata_wait_for_rdy(ATA_POWERDOWN_TIMEOUT);
-        sleep(HZ / 30);
+        sleep(2 * HZ);
         ATA_CONTROL = 0;
         while (!(ATA_CONTROL & BIT(1))) yield();
         PWRCON(0) |= (1 << 5);
