@@ -56,6 +56,15 @@
 #define CEATA_DAT_NONBUSY_TIMEOUT 5000000
 #define CEATA_MMC_RCA 1
 
+#define CEATA_MMC_SEND_COMMAND_SLEEP_TIME    1000
+#define ATA_WAIT_FOR_IDENTIFY_TIMEOUT    10000000
+#define ATA_WAIT_FOR_FEATURE_TIMEOUT      2000000
+#define ATA_POWERDOWN_TIMEOUT             1000000
+#define ATA_RW_TIMEOUT                     100000
+#define ATA_RW_TRANSFER_TIMEOUT            500000
+#define ATA_SOFT_RESET_TIMEOUT            3000000
+#define ATA_SMART_TIMEOUT                10000000
+
 
 /** static, private data **/
 static uint8_t ceata_taskfile[16] STORAGE_ALIGN_ATTR;
@@ -180,7 +189,7 @@ static bool mmc_send_command(uint32_t cmd, uint32_t arg, uint32_t* result, int t
     if (!(SDCI_DSTA & SDCI_DSTA_CMDRDY)) RET_ERR(1);
     SDCI_CMD = cmd | SDCI_CMD_CMDSTR;
     long sleepbase = USEC_TIMER;
-    while (TIMEOUT_EXPIRED(sleepbase, 1000)) yield();
+    while (TIMEOUT_EXPIRED(sleepbase, CEATA_MMC_SEND_COMMAND_SLEEP_TIME)) yield();
     while (!(SDCI_DSTA & SDCI_DSTA_CMDEND))
     {
         if (TIMEOUT_EXPIRED(starttime, timeout)) RET_ERR(2);
@@ -504,10 +513,10 @@ static int ata_identify(uint16_t* buf)
     }
     else
     {
-        PASS_RC(ata_wait_for_not_bsy(10000000), 1, 0);
+        PASS_RC(ata_wait_for_not_bsy(ATA_WAIT_FOR_IDENTIFY_TIMEOUT), 1, 0);
         ata_write_cbr(&ATA_PIO_DVR, 0);
         ata_write_cbr(&ATA_PIO_CSD, CMD_IDENTIFY);
-        PASS_RC(ata_wait_for_start_of_transfer(10000000), 1, 1);
+        PASS_RC(ata_wait_for_start_of_transfer(ATA_WAIT_FOR_IDENTIFY_TIMEOUT), 1, 1);
         for (i = 0; i < 0x100; i++) buf[i] = ata_read_cbr(&ATA_PIO_DTR);
     }
     return 0;
@@ -537,12 +546,12 @@ static int ata_set_feature(uint32_t feature, uint32_t param)
     }
     else
     {
-        PASS_RC(ata_wait_for_rdy(2000000), 2, 0);
+        PASS_RC(ata_wait_for_rdy(ATA_WAIT_FOR_FEATURE_TIMEOUT), 2, 0);
         ata_write_cbr(&ATA_PIO_DVR, 0);
         ata_write_cbr(&ATA_PIO_FED, feature);
         ata_write_cbr(&ATA_PIO_SCR, param);
         ata_write_cbr(&ATA_PIO_CSD, CMD_SET_FEATURES);
-        PASS_RC(ata_wait_for_rdy(2000000), 2, 1);
+        PASS_RC(ata_wait_for_rdy(ATA_WAIT_FOR_FEATURE_TIMEOUT), 2, 1);
     }
     return 0;
 }
@@ -714,10 +723,10 @@ static void ata_power_down(void)
     }
     else
     {
-        ata_wait_for_rdy(1000000);
+        ata_wait_for_rdy(ATA_POWERDOWN_TIMEOUT);
         ata_write_cbr(&ATA_PIO_DVR, 0);
         ata_write_cbr(&ATA_PIO_CSD, CMD_STANDBY_IMMEDIATE);
-        ata_wait_for_rdy(1000000);
+        ata_wait_for_rdy(ATA_POWERDOWN_TIMEOUT);
         sleep(HZ / 30);
         ATA_CONTROL = 0;
         while (!(ATA_CONTROL & BIT(1))) yield();
@@ -752,7 +761,7 @@ static int ata_rw_chunk_internal(uint64_t sector, uint32_t cnt, void* buffer, bo
     }
     else
     {
-        PASS_RC(ata_wait_for_rdy(100000), 2, 0);
+        PASS_RC(ata_wait_for_rdy(ATA_RW_TIMEOUT), 2, 0);
         ata_write_cbr(&ATA_PIO_DVR, 0);
         if (ata_lba48)
         {
@@ -784,7 +793,7 @@ static int ata_rw_chunk_internal(uint64_t sector, uint32_t cnt, void* buffer, bo
         }
         if (ata_dma)
         {
-            PASS_RC(ata_wait_for_start_of_transfer(500000), 2, 1);
+            PASS_RC(ata_wait_for_start_of_transfer(ATA_RW_TRANSFER_TIMEOUT), 2, 1);
             if (write)
             {
                 ATA_SBUF_START = buffer;
@@ -804,7 +813,7 @@ static int ata_rw_chunk_internal(uint64_t sector, uint32_t cnt, void* buffer, bo
             ATA_IRQ = BITRANGE(0, 4);
             ATA_IRQ_MASK = BIT(0);
             ATA_COMMAND = BIT(0);
-            if (semaphore_wait(&ata_wakeup, 500000 * HZ / 1000000)
+            if (semaphore_wait(&ata_wakeup, ATA_RW_TRANSFER_TIMEOUT * HZ / 1000000)
                 == OBJ_WAIT_TIMEDOUT)
             {
                 ATA_COMMAND = BIT(1);
@@ -820,7 +829,7 @@ static int ata_rw_chunk_internal(uint64_t sector, uint32_t cnt, void* buffer, bo
             while (cnt--)
             {
                 int i;
-                PASS_RC(ata_wait_for_start_of_transfer(500000), 2, 1);
+                PASS_RC(ata_wait_for_start_of_transfer(ATA_RW_TRANSFER_TIMEOUT), 2, 1);
                 if (write)
                     for (i = 0; i < 256; i++)
                         ata_write_cbr(&ATA_PIO_DTR, ((uint16_t*)buffer)[i]);
@@ -830,7 +839,7 @@ static int ata_rw_chunk_internal(uint64_t sector, uint32_t cnt, void* buffer, bo
                 buffer += 512;
             }
         }
-        PASS_RC(ata_wait_for_end_of_transfer(100000), 2, 3);
+        PASS_RC(ata_wait_for_end_of_transfer(ATA_RW_TIMEOUT), 2, 3);
     }
     return 0;
 }
@@ -916,7 +925,7 @@ int ata_soft_reset(void)
         ata_write_cbr(&ATA_PIO_DAD, BIT(1) | BIT(2));
         udelay(10);
         ata_write_cbr(&ATA_PIO_DAD, 0);
-        rc = ata_wait_for_rdy(3000000);
+        rc = ata_wait_for_rdy(ATA_SOFT_RESET_TIMEOUT);
     }
     ata_set_active();
     mutex_unlock(&ata_mutex);
@@ -1051,13 +1060,13 @@ static int ata_smart(uint16_t* buf)
     else
     {
         int i;
-        PASS_RC(ata_wait_for_not_bsy(10000000), 3, 6);
+        PASS_RC(ata_wait_for_not_bsy(ATA_SMART_TIMEOUT), 3, 6);
         ata_write_cbr(&ATA_PIO_FED, 0xd0);
         ata_write_cbr(&ATA_PIO_LMR, 0x4f);
         ata_write_cbr(&ATA_PIO_LHR, 0xc2);
         ata_write_cbr(&ATA_PIO_DVR, BIT(6));
         ata_write_cbr(&ATA_PIO_CSD, CMD_SMART);
-        PASS_RC(ata_wait_for_start_of_transfer(10000000), 3, 7);
+        PASS_RC(ata_wait_for_start_of_transfer(ATA_SMART_TIMEOUT), 3, 7);
         for (i = 0; i < 0x100; i++) buf[i] = ata_read_cbr(&ATA_PIO_DTR);
     }
     ata_set_active();
