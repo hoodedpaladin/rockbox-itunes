@@ -1853,6 +1853,8 @@ const struct settings_list settings[] = {
                    ID2P(LANG_FM_ITALY), ID2P(LANG_FM_OTHER)),
 #endif
 
+    OFFON_SETTING(F_BANFROMQS, audioscrobbler, LANG_AUDIOSCROBBLER, false,
+                  "Last.fm Logging", NULL),
 #if CONFIG_TUNER
     TEXT_SETTING(0, fmr_file, "fmr", "-",
                      FMPRESET_PATH "/", ".fmr"),
