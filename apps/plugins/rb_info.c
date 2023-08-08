@@ -335,17 +335,6 @@ static int list_voice_cb(int list_index, void* data)
             rb->talk_spell(name, true);
         }
     }
-    else if (data == MENU_ID(M_TESTPUT))
-    {
-        char buf[64];
-        const char* name = printcell_get_column_text(printcell_get_column_selected(),
-                                                                   buf, sizeof(buf));
-        long id = P2ID((const unsigned char *)name);
-        if(id>=0)
-            rb->talk_id(id, true);
-        else
-            rb->talk_spell(name, true);
-    }
     else
     {
         char buf[64];
@@ -365,12 +354,12 @@ int menu_action_cb(int *action, int selected_item, bool* exit, struct gui_syncli
     {
         if (*action == ACTION_STD_OK)
         {
-            printcell_increment_column(1, true);
+            printcell_increment_column(lists, 1, true);
             *action = ACTION_NONE;
         }
         else if (*action == ACTION_STD_CANCEL)
         {
-            if (printcell_increment_column(-1, true) != testput_cols - 1)
+            if (printcell_increment_column(lists, -1, true) != testput_cols - 1)
             {
                 *action = ACTION_NONE;
             }
@@ -379,8 +368,7 @@ int menu_action_cb(int *action, int selected_item, bool* exit, struct gui_syncli
         {
             char buf[PRINTCELL_MAXLINELEN];
             char* bufp = buf;
-            int selcol = printcell_get_column_selected();
-            bufp = printcell_get_column_text(selcol, bufp, PRINTCELL_MAXLINELEN);
+            bufp = printcell_get_selected_column_text(lists, bufp, PRINTCELL_MAXLINELEN);
             rb->splashf(HZ * 2, "Item: %s", bufp);
         }
     }
@@ -441,12 +429,18 @@ int menu_action_cb(int *action, int selected_item, bool* exit, struct gui_syncli
                     if (cur->menuid == MENU_ID(M_TESTPUT))
                     {
                         synclist_set(cur->menuid, 0, cur->items, 1);
-                        printcell_enable(true);
+#if LCD_DEPTH > 1
+                        /* If line sep is set to automatic then outline cells */
+                        bool showlinesep = (rb->global_settings->list_separator_height < 0);
+#else
+                        bool showlinesep = (rb->global_settings->cursor_style == 0);
+#endif
+                        printcell_enable(lists, true, showlinesep);
                         //lists->callback_draw_item = test_listdraw_fn;
                     }
                     else
                     {
-                        printcell_enable(false);
+                        printcell_enable(lists, false, false);
                         synclist_set(cur->menuid, 1, cur->items, 1);
                     }
                     rb->gui_synclist_draw(lists);
@@ -479,7 +473,7 @@ int menu_action_cb(int *action, int selected_item, bool* exit, struct gui_syncli
         if (lists->data == MENU_ID(M_TESTPUT))
         {
             //lists->callback_draw_item = NULL;
-            printcell_enable(false);
+            printcell_enable(lists, false, false);
         }
         if (lists->data != MENU_ID(M_ROOT))
         {
@@ -511,8 +505,7 @@ static void synclist_set(char* menu_id, int selected_item, int items, int sel_si
                           menu_id, false, sel_size, NULL);
     if (menu_id == MENU_ID(M_TESTPUT))
     {
-        testput_cols = printcell_set_columns(&lists, NULL,
-                                             TESTPUT_HEADER, Icon_Rockbox);
+        testput_cols = printcell_set_columns(&lists, TESTPUT_HEADER, Icon_Rockbox);
     }
     else
     {
@@ -569,6 +562,6 @@ enum plugin_status plugin_start(const void* parameter)
             selected_item = rb->gui_synclist_get_sel_pos(&lists);
         }
     }
-    printcell_enable(false);
+
     return ret;
 }
