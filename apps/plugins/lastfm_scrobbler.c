@@ -26,7 +26,6 @@ http://www.audioscrobbler.net/wiki/Portable_Player_Logging
 */
 
 #include "plugin.h"
-#include "lib/configfile.h"
 
 #ifndef UNTAGGED
     #define UNTAGGED "<UNTAGGED>"
@@ -56,9 +55,6 @@ http://www.audioscrobbler.net/wiki/Portable_Player_Logging
 
 #define ITEM_HDR "#ARTIST #ALBUM #TITLE #TRACKNUM #LENGTH #RATING #TIMESTAMP #MUSICBRAINZ_TRACKID\n"
 
-#define CFG_FILE "/lastfm_scrobbler.cfg"
-#define CFG_VER  1
-
 #if CONFIG_RTC
 static time_t timestamp;
 #define BASE_FILENAME       HOME_DIR "/.scrobbler.log"
@@ -75,6 +71,7 @@ static time_t timestamp;
 #define THREAD_STACK_SIZE 4*DEFAULT_STACK_SIZE
 
 /****************** prototypes ******************/
+int plugin_main(const void* parameter); /* main loop */
 enum plugin_status plugin_start(const void* parameter); /* entry */
 
 /****************** globals ******************/
@@ -97,86 +94,6 @@ static struct
     bool   pending;
     bool   force_flush;
 } gCache;
-
-static struct
-{
-    int  savepct;
-    bool playback;
-    bool verbose;
-} gConfig;
-
-static struct configdata config[] =
-{
-   {TYPE_INT, 0, 100, { .int_p = &gConfig.savepct }, "SavePct", NULL},
-   {TYPE_BOOL, 0, 1, { .bool_p = &gConfig.playback }, "Playback", NULL},
-   {TYPE_BOOL, 0, 1, { .bool_p = &gConfig.verbose },  "Verbose", NULL},
-};
-const int gCfg_sz = sizeof(config)/sizeof(*config);
-/****************** config functions *****************/
-static void config_set_defaults(void)
-{
-    gConfig.savepct = 50;
-    gConfig.playback = false;
-    gConfig.verbose = true;
-}
-
-static int config_settings_menu(void)
-{
-    int selection = 0;
-
-    struct viewport parentvp[NB_SCREENS];
-    FOR_NB_SCREENS(l)
-    {
-        rb->viewport_set_defaults(&parentvp[l], l);
-        rb->viewport_set_fullscreen(&parentvp[l], l);
-    }
-
-    MENUITEM_STRINGLIST(settings_menu, ID2P(LANG_SETTINGS), NULL,
-                        ID2P(LANG_RESUME_PLAYBACK),
-                        "Save Threshold",
-                        "Verbose",
-                        ID2P(VOICE_BLANK),
-                        ID2P(LANG_CANCEL_0),
-                        ID2P(LANG_SAVE_EXIT));
-
-    do {
-        selection=rb->do_menu(&settings_menu,&selection, parentvp, true);
-        switch(selection) {
-
-            case 0:
-                rb->set_bool(str(LANG_RESUME_PLAYBACK), &gConfig.playback);
-                break;
-            case 1:
-                rb->set_int("Save Threshold", "%", UNIT_PERCENT,
-                            &gConfig.savepct, NULL, 10, 0, 100, NULL );
-                break;
-            case 2:
-                rb->set_bool("Verbose", &gConfig.verbose);
-                break;
-            case 3: /*sep*/
-                continue;
-            case 4:
-                return -1;
-                break;
-            case 5:
-            {
-                int res = configfile_save(CFG_FILE, config, gCfg_sz, CFG_VER);
-                if (res >= 0)
-                {
-                    logf("Scrobbler cfg saved %s %d bytes", CFG_FILE, gCfg_sz);
-                    return PLUGIN_OK;
-                }
-                logf("Scrobbler cfg FAILED (%d) %s", res, CFG_FILE);
-                return PLUGIN_ERROR;
-            }
-            case MENU_ATTACHED_USB:
-                return PLUGIN_USB_CONNECTED;
-            default:
-                return PLUGIN_OK;
-        }
-    } while ( selection >= 0 );
-    return 0;
-}
 
 /****************** helper fuctions ******************/
 
@@ -293,13 +210,6 @@ static inline char* str_chk_valid(char *s, char *alt)
     return (s != NULL ? s : alt);
 }
 
-static unsigned long scrobbler_get_threshold(unsigned long length)
-{
-    /* length is assumed to be in miliseconds */
-    return length / 100 * gConfig.savepct;
-
-}
-
 static void scrobbler_add_to_cache(const struct mp3entry *id)
 {
     static uint32_t last_crc = 0;
@@ -313,7 +223,7 @@ static void scrobbler_add_to_cache(const struct mp3entry *id)
 
     logf("SCROBBLER: add_to_cache[%d]", gCache.pos);
 
-    if (id->elapsed >= scrobbler_get_threshold(id->length))
+    if (id->elapsed > id->length / 2)
         rating = 'L'; /* Listened */
 
     char tracknum[11] = { "" };
@@ -384,9 +294,9 @@ static void scrobbler_change_event(unsigned short id, void *ev_data)
     logf("%s", __func__);
     struct mp3entry *id3 = ((struct track_event *)ev_data)->id3;
 
-    /*  check if track was resumed > %threshold played ( likely got saved )
+    /*  check if track was resumed > %50 played ( likely got saved )
         check for blank artist or track name */
-    if ((id3->elapsed > scrobbler_get_threshold(id3->length))
+    if ((id3->elapsed > id3->length / 2)
         || (!id3->artist && !id3->albumartist) || !id3->title)
     {
         gCache.pending = false;
@@ -422,32 +332,25 @@ static void scrobbler_finish_event(unsigned short id, void *ev_data)
 {
     (void)id;
     struct track_event *te = ((struct track_event *)ev_data);
+    struct mp3entry *id3 = te->id3;
     logf("%s %s %s", __func__, gCache.pending?"True":"False", track_event_info(te));
     /* add entry using the currently ending track */
     if (gCache.pending && (te->flags & TEF_CURRENT) && !(te->flags & TEF_REWIND))
     {
         gCache.pending = false;
 
-        scrobbler_add_to_cache(te->id3);
+        if (id3->elapsed*2 >= id3->length)
+            scrobbler_add_to_cache(te->id3);
+        else
+        {
+            logf("%s Discarding < 50%% played", __func__);
+        }
     }
 
 
 }
 
-/****************** main thread + helpers ******************/
-static void events_unregister(void)
-{
-    /* we don't want any more events */
-    rb->remove_event(PLAYBACK_EVENT_TRACK_CHANGE, scrobbler_change_event);
-    rb->remove_event(PLAYBACK_EVENT_TRACK_FINISH, scrobbler_finish_event);
-}
-
-static void events_register(void)
-{
-    rb->add_event(PLAYBACK_EVENT_TRACK_CHANGE, scrobbler_change_event);
-    rb->add_event(PLAYBACK_EVENT_TRACK_FINISH, scrobbler_finish_event);
-}
-
+/****************** main thread + helper ******************/
 void thread(void)
 {
     bool in_usb = false;
@@ -468,7 +371,6 @@ void thread(void)
                 in_usb = false;
                 /*fall through*/
             case EV_STARTUP:
-                events_register();
                 rb->beep_play(1500, 100, 1000);
                 break;
             case SYS_POWEROFF:
@@ -482,7 +384,6 @@ void thread(void)
                 if (!in_usb)
                     scrobbler_flush_cache();
 #endif
-                events_unregister();
                 return;
             case EV_FLUSHCACHE:
                 scrobbler_flush_cache();
@@ -511,19 +412,22 @@ void thread_create(void)
 void thread_quit(void)
 {
     if (!gThread.exiting) {
-        gThread.exiting = true;
         rb->queue_post(&gThread.queue, EV_EXIT, 0);
         rb->thread_wait(gThread.id);
+        /* we don't want any more events */
+        rb->remove_event(PLAYBACK_EVENT_TRACK_CHANGE, scrobbler_change_event);
+        rb->remove_event(PLAYBACK_EVENT_TRACK_FINISH, scrobbler_finish_event);
         /* remove the thread's queue from the broadcast list */
         rb->queue_delete(&gThread.queue);
+        gThread.exiting = true;
     }
 }
 
 /* callback to end the TSR plugin, called before a new one gets loaded */
 static bool exit_tsr(bool reenter)
 {
-    MENUITEM_STRINGLIST(menu, ID2P(LANG_AUDIOSCROBBLER), NULL, ID2P(LANG_SETTINGS),
-                        "Flush Cache", "Exit Plugin", ID2P(LANG_BACK));
+    MENUITEM_STRINGLIST(menu, ID2P(LANG_AUDIOSCROBBLER), NULL,
+                        "Flush Cache", "Quit", "Back");
 
     const struct text_message quit_prompt = {
         (const char*[]){ ID2P(LANG_AUDIOSCROBBLER),
@@ -533,25 +437,22 @@ static bool exit_tsr(bool reenter)
 
     while(true)
     {
-        int result = reenter ? rb->do_menu(&menu, NULL, NULL, false) : 2;
+        int result = reenter ? rb->do_menu(&menu, NULL, NULL, false) : 1;
         switch(result)
         {
-            case 0: /* settings */
-                config_settings_menu();
-                break;
-            case 1: /* flush cache */
+            case 0: /* flush cache */
                 rb->queue_send(&gThread.queue, EV_FLUSHCACHE, 0);
-                if (gConfig.verbose)
-                    rb->splashf(2*HZ, "%s Cache Flushed", str(LANG_AUDIOSCROBBLER));
+                rb->splashf(2*HZ, "%s Cache Flushed", str(LANG_AUDIOSCROBBLER));
                 break;
 
-            case 2: /* exit plugin - quit */
+            case 1: /* quit */
                 if(rb->gui_syncyesno_run(&quit_prompt, NULL, NULL) == YESNO_YES)
                 {
-                    thread_quit();
-                    if (reenter)
-                        rb->plugin_tsr(NULL); /* remove TSR cb */
-                    return !reenter;
+                    rb->queue_post(&gThread.queue, EV_EXIT, 0);
+                    rb->thread_wait(gThread.id);
+                    /* remove the thread's queue from the broadcast list */
+                    rb->queue_delete(&gThread.queue);
+                    return true;
                 }
 
                 if(!reenter)
@@ -559,29 +460,29 @@ static bool exit_tsr(bool reenter)
 
                 break;
 
-            case 3: /* back to menu */
+            case 2: /* back to menu */
                 return false;
         }
     }
 }
 
 /****************** main ******************/
-static int plugin_main(const void* parameter)
+
+int plugin_main(const void* parameter)
 {
     (void)parameter;
 
     rb->memset(&gThread, 0, sizeof(gThread));
-    if (gConfig.verbose)
-        rb->splashf(HZ / 2, "%s Started",str(LANG_AUDIOSCROBBLER));
+    rb->splashf(HZ / 2, "%s Started",str(LANG_AUDIOSCROBBLER));
     logf("%s: %s Started", __func__, str(LANG_AUDIOSCROBBLER));
 
     rb->plugin_tsr(exit_tsr); /* stay resident */
 
+    rb->add_event(PLAYBACK_EVENT_TRACK_CHANGE, scrobbler_change_event);
+    rb->add_event(PLAYBACK_EVENT_TRACK_FINISH, scrobbler_finish_event);
     thread_create();
 
-    if (gConfig.playback)
-        return PLUGIN_GOTO_WPS;
-    return PLUGIN_OK;
+    return 0;
 }
 
 /***************** Plugin Entry Point *****************/
@@ -594,16 +495,6 @@ enum plugin_status plugin_start(const void* parameter)
     language_strings = rb->language_strings;
     if (scrobbler_init() < 0)
         return PLUGIN_ERROR;
-
-    if (configfile_load(CFG_FILE, config, gCfg_sz, CFG_VER) < 0)
-    {
-        /* If the loading failed, save a new config file */
-        config_set_defaults();
-        configfile_save(CFG_FILE, config, gCfg_sz, CFG_VER);
-
-        rb->splash(HZ, ID2P(LANG_REVERT_TO_DEFAULT_SETTINGS));
-    }
-
     int ret = plugin_main(parameter);
-    return ret;
+    return (ret==0) ? PLUGIN_OK : PLUGIN_ERROR;
 }
