@@ -98,7 +98,7 @@ static struct
     bool   force_flush;
 } gCache;
 
-static struct lastfm_config
+static struct
 {
     int  savepct;
     int  beeplvl;
@@ -528,7 +528,7 @@ void thread_quit(void)
 }
 
 /* callback to end the TSR plugin, called before a new one gets loaded */
-static int exit_tsr(bool reenter)
+static bool exit_tsr(bool reenter)
 {
     MENUITEM_STRINGLIST(menu, ID2P(LANG_AUDIOSCROBBLER), NULL, ID2P(LANG_SETTINGS),
                         "Flush Cache", "Exit Plugin", ID2P(LANG_BACK));
@@ -556,13 +556,19 @@ static int exit_tsr(bool reenter)
             case 2: /* exit plugin - quit */
                 if(rb->gui_syncyesno_run(&quit_prompt, NULL, NULL) == YESNO_YES)
                 {
-                    scrobbler_flush_cache();
                     thread_quit();
-                    return (reenter ? PLUGIN_TSR_TERMINATE : PLUGIN_TSR_SUSPEND);
+                    if (reenter)
+                        rb->plugin_tsr(NULL); /* remove TSR cb */
+                    return !reenter;
                 }
-                /* Fall Through */
+
+                if(!reenter)
+                    return false;
+
+                break;
+
             case 3: /* back to menu */
-                return PLUGIN_TSR_CONTINUE;
+                return false;
         }
     }
 }
@@ -570,17 +576,7 @@ static int exit_tsr(bool reenter)
 /****************** main ******************/
 static int plugin_main(const void* parameter)
 {
-    struct lastfm_config cfg;
-    rb->memcpy(&cfg, & gConfig, sizeof(struct lastfm_config));
-
-    /* Resume plugin ? */
-    if (parameter == rb->plugin_tsr)
-    {
-
-        gConfig.beeplvl = 0;
-        gConfig.playback = false;
-        gConfig.verbose = false;
-    }
+    (void)parameter;
 
     rb->memset(&gThread, 0, sizeof(gThread));
     if (gConfig.verbose)
@@ -590,11 +586,9 @@ static int plugin_main(const void* parameter)
     rb->plugin_tsr(exit_tsr); /* stay resident */
 
     thread_create();
-    rb->memcpy(&gConfig, &cfg, sizeof(struct lastfm_config));
 
     if (gConfig.playback)
         return PLUGIN_GOTO_WPS;
-
     return PLUGIN_OK;
 }
 
