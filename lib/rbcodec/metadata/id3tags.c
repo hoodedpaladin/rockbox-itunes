@@ -379,6 +379,10 @@ static int parseuser( struct mp3entry* entry, char* tag, int bufferpos )
             length = strlen(value) + 1;
             strlcpy(tag, value, length);
             entry->albumartist = tag;
+        } else if (!strcasecmp(tag, "ITID")) {
+            length = strlen(value) + 1;
+            strlcpy(tag, value, length);
+            entry->itid = tag;
         } else {
             /* Call parse_replaygain(). */
             parse_replaygain(tag, value, entry);
