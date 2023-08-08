@@ -101,17 +101,15 @@ static struct
 static struct
 {
     int  savepct;
-    int  beeplvl;
     bool playback;
     bool verbose;
 } gConfig;
 
 static struct configdata config[] =
 {
-   {TYPE_INT, 0, 100, { .int_p = &gConfig.savepct },   "SavePct",  NULL},
-   {TYPE_BOOL, 0, 1,  { .bool_p = &gConfig.playback }, "Playback", NULL},
-   {TYPE_BOOL, 0, 1,  { .bool_p = &gConfig.verbose },  "Verbose",  NULL},
-   {TYPE_INT, 0, 10,  { .int_p = &gConfig.beeplvl },   "BeepLvl",  NULL},
+   {TYPE_INT, 0, 100, { .int_p = &gConfig.savepct }, "SavePct", NULL},
+   {TYPE_BOOL, 0, 1, { .bool_p = &gConfig.playback }, "Playback", NULL},
+   {TYPE_BOOL, 0, 1, { .bool_p = &gConfig.verbose },  "Verbose", NULL},
 };
 const int gCfg_sz = sizeof(config)/sizeof(*config);
 /****************** config functions *****************/
@@ -120,7 +118,6 @@ static void config_set_defaults(void)
     gConfig.savepct = 50;
     gConfig.playback = false;
     gConfig.verbose = true;
-    gConfig.beeplvl = 10;
 }
 
 static int config_settings_menu(void)
@@ -138,7 +135,6 @@ static int config_settings_menu(void)
                         ID2P(LANG_RESUME_PLAYBACK),
                         "Save Threshold",
                         "Verbose",
-                        "Beep Level",
                         ID2P(VOICE_BLANK),
                         ID2P(LANG_CANCEL_0),
                         ID2P(LANG_SAVE_EXIT));
@@ -157,15 +153,12 @@ static int config_settings_menu(void)
             case 2:
                 rb->set_bool("Verbose", &gConfig.verbose);
                 break;
-            case 3:
-                rb->set_int("Beep Level", "", UNIT_INT,
-                            &gConfig.beeplvl, NULL, 1, 0, 10, NULL);
-            case 4: /*sep*/
+            case 3: /*sep*/
                 continue;
-            case 5:
+            case 4:
                 return -1;
                 break;
-            case 6:
+            case 5:
             {
                 int res = configfile_save(CFG_FILE, config, gCfg_sz, CFG_VER);
                 if (res >= 0)
@@ -476,8 +469,7 @@ void thread(void)
                 /*fall through*/
             case EV_STARTUP:
                 events_register();
-                if (gConfig.beeplvl > 0)
-                    rb->beep_play(1500, 100, 100 * gConfig.beeplvl);
+                rb->beep_play(1500, 100, 1000);
                 break;
             case SYS_POWEROFF:
             case SYS_REBOOT:
@@ -602,8 +594,6 @@ enum plugin_status plugin_start(const void* parameter)
     language_strings = rb->language_strings;
     if (scrobbler_init() < 0)
         return PLUGIN_ERROR;
-
-    config_set_defaults();
 
     if (configfile_load(CFG_FILE, config, gCfg_sz, CFG_VER) < 0)
     {
