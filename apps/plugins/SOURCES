@@ -12,7 +12,6 @@ dict.c
 jackpot.c
 keybox.c
 keyremap.c
-lastfm_scrobbler.c
 logo.c
 lrcplayer.c
 mosaique.c
