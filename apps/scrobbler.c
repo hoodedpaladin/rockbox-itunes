@@ -148,30 +148,29 @@ static void add_to_cache(const struct mp3entry *id)
     if ( cache_pos >= SCROBBLER_MAX_CACHE )
         write_cache();
 
-    char rating = 'S'; /* Skipped */
     char* scrobbler_buf = core_get_data(scrobbler_cache);
+    unsigned long playtime;
 
     logf("SCROBBLER: add_to_cache[%d]", cache_pos);
 
-    if (id->elapsed > id->length / 2)
-        rating = 'L'; /* Listened */
-
-    char tracknum[11] = { "" };
-
-    if (id->tracknum > 0)
-        snprintf(tracknum, sizeof (tracknum), "%d", id->tracknum);
+    if (id->elapsed > id->original_elapsed)
+    {
+        playtime = id->elapsed - id->original_elapsed;
+    }
+    else
+    {
+        //No playtime = no scrobble
+        return;
+    }
 
     int ret = snprintf(scrobbler_buf+(SCROBBLER_CACHE_LEN*cache_pos),
                        SCROBBLER_CACHE_LEN,
-                       "%s\t%s\t%s\t%s\t%d\t%c\t%ld\t%s\n",
-                       id->artist,
-                       id->album ?: "",
-                       id->title,
-                       tracknum,
-                       (int)(id->length / 1000),
-                       rating,
+                       "%s\t%s\t%lu\t%lu/%lu\n",
+                       id->itid ? id->itid : "",
+                       id->path ? id->path : "",
                        get_timestamp(),
-                       id->mb_track_id ?: "");
+                       playtime,
+                       id->length);
 
     if ( ret >= SCROBBLER_CACHE_LEN )
     {
@@ -189,21 +188,12 @@ static void add_to_cache(const struct mp3entry *id)
 static void scrobbler_change_event(unsigned short id, void *ev_data)
 {
     (void)id;
-    struct mp3entry *id3 = ((struct track_event *)ev_data)->id3;
+    (void)ev_data;
 
-    /*  check if track was resumed > %50 played
-        check for blank artist or track name */
-    if (id3->elapsed > id3->length / 2 || !id3->artist || !id3->title)
-    {
-        pending = false;
-        logf("SCROBBLER: skipping file %s", id3->path);
-    }
-    else
-    {
-        logf("SCROBBLER: add pending");
-        record_timestamp();
-        pending = true;
-    }
+    // Always scrobble
+    logf("SCROBBLER: add pending");
+    record_timestamp();
+    pending = true;
 }
 
 static void scrobbler_finish_event(unsigned short id, void *data)
@@ -226,8 +216,7 @@ int scrobbler_init(void)
     if (scrobbler_initialised)
         return 1;
 
-    scrobbler_cache = core_alloc("scrobbler",
-        SCROBBLER_MAX_CACHE*SCROBBLER_CACHE_LEN);
+    scrobbler_cache = core_alloc(SCROBBLER_MAX_CACHE*SCROBBLER_CACHE_LEN);
 
     if (scrobbler_cache <= 0)
     {
