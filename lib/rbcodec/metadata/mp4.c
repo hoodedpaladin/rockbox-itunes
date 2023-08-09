@@ -567,7 +567,7 @@ static bool read_mp4_tags(int fd, struct mp3entry* id3,
                     read_mp4_tag_string(fd, size, &buffer, &buffer_left, 
                         &id3->albumartist);
                 }
-                else if (tn_op == 4) /*album artist*/
+                else if (tn_op == 4) /*itunes ID*/
                 {
                     read_mp4_tag_string(fd, size, &buffer, &buffer_left,
                         &id3->itid);
