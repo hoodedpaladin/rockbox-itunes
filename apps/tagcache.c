@@ -2020,6 +2020,7 @@ bool tagcache_fill_tags(struct mp3entry *id3, const char *filename)
     SET(id3->album,         tag_album);
     SET(id3->genre_string,  tag_genre);
     SET(id3->composer,      tag_composer);
+    SET(id3->itid,          tag_composer);
     SET(id3->comment,       tag_comment);
     SET(id3->albumartist,   tag_albumartist);
     SET(id3->grouping,      tag_grouping);
