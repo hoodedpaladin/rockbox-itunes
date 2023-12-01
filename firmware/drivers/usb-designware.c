@@ -209,6 +209,10 @@ static uint32_t usb_dw_maxxfersize(int epnum, enum usb_dw_epdir epdir)
 /* Calculate number of packets (if size == 0 an empty packet will be sent) */
 static uint32_t usb_dw_calc_packets(uint32_t size, uint32_t maxpktsize)
 {
+    if (maxpktsize == 0)
+    {
+        panicf("usb_dw_calc_packets maxpktsize is 0");
+    }
     return MAX(1, (size + maxpktsize - 1) / maxpktsize);
 }
 
@@ -369,6 +373,10 @@ static void usb_dw_handle_dtxfifo(int epnum)
             /* We push whole packets to read consistent info on DIEPTSIZ
                (i.e. when FIFO size is not maxpktsize multiplo). */
             uint32_t maxpktwords = usb_dw_maxpktsize(epnum, USB_DW_EPDIR_IN) >> 2;
+            if (maxpktwords == 0)
+            {
+                panicf("usb_dw_handle_dtxfifo maxpktwords is 0");
+            }
             words = (fifospace / maxpktwords) * maxpktwords;
         }
 
@@ -1352,6 +1360,11 @@ static void usb_dw_check_hw(void)
     {
         err = "insufficient FIFO memory";
         goto panic;
+    }
+    if (c->ptx_fifosz == 0)
+    {
+        panicf("usb_dw_check_hw c->ptx_fifosz is 0");
+        return;
     }
     n_ptxfifos = (hw_fifomem - c->rx_fifosz - c->nptx_fifosz) / c->ptx_fifosz;
     if (n_ptxfifos > hw_maxtxfifos) n_ptxfifos = hw_maxtxfifos;
