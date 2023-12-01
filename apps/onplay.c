@@ -751,8 +751,8 @@ MAKE_ONPLAYMENU(tree_playlist_menu, ID2P(LANG_PLAYING_NEXT),
                 treeplaylist_callback, Icon_Playlist,
 
                 /* insert */
-                &i_first_pl_item,
                 &i_pl_item,
+                &i_first_pl_item,
                 &i_last_pl_item,
                 &i_shuf_pl_item,
                 &i_last_shuf_pl_item,
