@@ -4179,7 +4179,8 @@ int playlist_emancipate(void)
             break;
         }
 
-        result = fdprintf(fd, "%c:%d:%d:%s\n", PLAYLIST_COMMAND_LETTER_ADD, i, i, tmp_buf);
+        result = fdprintf(fd, "%c:%d:%d:%s\n",
+			((playlist->indices[index] & PLAYLIST_QUEUED) == PLAYLIST_QUEUED) ? PLAYLIST_COMMAND_LETTER_QUEUE : PLAYLIST_COMMAND_LETTER_ADD, i, i, tmp_buf);
         if (result < 0)
         {
             break;
