@@ -155,6 +155,7 @@ struct playlist_info* playlist_load(const char* dir, const char* file,
 int playlist_set_current(struct playlist_info* playlist);
 void playlist_close(struct playlist_info* playlist);
 void playlist_sync(struct playlist_info* playlist);
+void playlist_queue_all(bool queue);
 int playlist_insert_track(struct playlist_info* playlist, const char *filename,
                           int position, bool queue, bool sync);
 int playlist_insert_context_create(struct playlist_info* playlist,
