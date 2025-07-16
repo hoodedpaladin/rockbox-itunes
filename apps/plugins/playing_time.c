@@ -32,7 +32,8 @@ const unsigned char * const byte_units[] =
 
 const int menu_items[] = {
         LANG_REMAINING,
-        LANG_ELAPSED,
+        LANG_PLAYTIME_ELAPSED1,
+        LANG_PLAYTIME_ELAPSED2,
         LANG_PLAYTIME_TRK_REMAINING,
         LANG_PLAYTIME_TRK_ELAPSED,
         LANG_PLAYTIME_TRACK,
@@ -155,13 +156,10 @@ static const char * pt_get_or_speak_info(int selected_item, void * data,
                         TALK_ID(pti->length[ePT_REMAINING], UNIT_TIME));
         break;
     }
-    case 1: { /* elapsed and total time */
-        char timestr1[25], timestr2[25];
+    case 1: { /* elapsed time */
+        char timestr1[25];
         rb->format_time_auto(timestr1, sizeof(timestr1),
                              pti->length[ePT_ELAPSED], UNIT_SEC, true);
-
-        rb->format_time_auto(timestr2, sizeof(timestr2),
-                             pti->length[ePT_TOTAL], UNIT_SEC, true);
 
         if (pti->length[ePT_TOTAL] == 0)
             elapsed_pct = 0;
@@ -175,7 +173,8 @@ static const char * pt_get_or_speak_info(int selected_item, void * data,
             elapsed_pct = (pti->length[ePT_ELAPSED] >> 7) * 100
                           / (pti->length[ePT_TOTAL] >> 7);
         }
-        prepare_time_string(buf, buffer_len, elapsed_pct, timestr1, timestr2);
+        rb->snprintf(buf, buffer_len, "%s %s",
+                     timestr1, get_percent_str(elapsed_pct));
 
         if (say_it)
             rb_talk_ids(false, menu_name_id,
@@ -186,7 +185,23 @@ static const char * pt_get_or_speak_info(int selected_item, void * data,
                         TALK_ID(elapsed_pct, UNIT_PERCENT));
         break;
     }
-    case 2: { /* track remaining time */
+    case 2: { /* total time */
+        char timestr2[25];
+        rb->format_time_auto(timestr2, sizeof(timestr2),
+                             pti->length[ePT_TOTAL], UNIT_SEC, true);
+
+        rb->snprintf(buf, buffer_len, "%s", timestr2);
+
+        if (say_it)
+            rb_talk_ids(false, menu_name_id,
+                        TALK_ID(pti->length[ePT_ELAPSED], UNIT_TIME),
+                        VOICE_OF,
+                        TALK_ID(pti->length[ePT_TOTAL], UNIT_TIME),
+                        VOICE_PAUSE,
+                        TALK_ID(elapsed_pct, UNIT_PERCENT));
+        break;
+    }
+    case 3: { /* track remaining time */
         char timestr[25];
         rb->format_time_auto(timestr, sizeof(timestr),
                              pti->curr_track_length[ePT_REMAINING], UNIT_SEC, false);
@@ -197,7 +212,7 @@ static const char * pt_get_or_speak_info(int selected_item, void * data,
                         TALK_ID(pti->curr_track_length[ePT_REMAINING], UNIT_TIME));
         break;
     }
-    case 3: { /* track elapsed and duration */
+    case 4: { /* track elapsed and duration */
         char timestr1[25], timestr2[25];
 
         rb->format_time_auto(timestr1, sizeof(timestr1),
@@ -228,7 +243,7 @@ static const char * pt_get_or_speak_info(int selected_item, void * data,
                         TALK_ID(elapsed_pct, UNIT_PERCENT));
         break;
     }
-    case 4: { /* track index */
+    case 5: { /* track index */
         int track_pct = pti->actual_index * 100 / pti->counted;
 
         if (rb->lang_is_rtl())
@@ -247,7 +262,7 @@ static const char * pt_get_or_speak_info(int selected_item, void * data,
                         TALK_ID(track_pct, UNIT_PERCENT));
         break;
     }
-    case 5: { /* storage size */
+    case 6: { /* storage size */
         int i;
         char kbstr[ePT_COUNT][20];
 
@@ -272,7 +287,7 @@ static const char * pt_get_or_speak_info(int selected_item, void * data,
         }
         break;
     }
-    case 6: { /* Average track file size */
+    case 7: { /* Average track file size */
         char str[20];
         long avg_track_size = pti->size[ePT_TOTAL] / pti->counted;
         rb->output_dyn_value(str, sizeof(str), avg_track_size, kibyte_units, 3, true);
@@ -284,7 +299,7 @@ static const char * pt_get_or_speak_info(int selected_item, void * data,
         }
         break;
     }
-    case 7: { /* Average bitrate */
+    case 8: { /* Average bitrate */
         /* Convert power of 2 kilobytes to power of 10 kilobits */
         long avg_bitrate = (pti->size[ePT_TOTAL] / pti->length[ePT_TOTAL]
                             * 1024 * 8 / 1000);
