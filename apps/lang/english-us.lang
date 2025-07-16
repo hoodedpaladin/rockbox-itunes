@@ -13732,6 +13732,34 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_PLAYTIME_ELAPSED1
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Playlist elapsed: %s (%ld%%)"
+  </source>
+  <dest>
+    *: "Playlist elapsed: %s (%ld%%)"
+  </dest>
+  <voice>
+    *: "Playlist elapsed"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_PLAYTIME_ELAPSED2
+  desc: playing time screen
+  user: core
+  <source>
+    *: "Playlist total: %s"
+  </source>
+  <dest>
+    *: "Playlist total: %s"
+  </dest>
+  <voice>
+    *: "Playlist total"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_PLAYTIME_REMAINING
   desc: playing time screen
   user: core
