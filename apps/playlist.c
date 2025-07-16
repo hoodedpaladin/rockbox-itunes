@@ -4427,7 +4427,8 @@ int playlist_emancipate(void)
             break;
         }
 
-        result = fdprintf(fd, "A:%d:%d:%s\n", i, i, tmp_buf);
+        result = fdprintf(fd, "%c:%d:%d:%s\n",
+			((playlist->indices[index] & PLAYLIST_QUEUED) == PLAYLIST_QUEUED) ? 'Q' : 'A', i, i, tmp_buf);
         if (result < 0)
         {
             break;
