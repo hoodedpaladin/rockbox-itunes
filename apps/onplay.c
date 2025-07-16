@@ -581,6 +581,7 @@ static struct add_to_pl_param addtopl_queue_first      = {PLAYLIST_INSERT_FIRST,
 static struct add_to_pl_param addtopl_queue_last       = {PLAYLIST_INSERT_LAST, 1, 0};
 static struct add_to_pl_param addtopl_queue_shuf       = {PLAYLIST_INSERT_SHUFFLED, 1, 0};
 static struct add_to_pl_param addtopl_queue_last_shuf  = {PLAYLIST_INSERT_LAST_SHUFFLED, 1, 0};
+static struct add_to_pl_param addtopl_queue_next_shuf  = {PLAYLIST_INSERT_NEXT_SHUFFLED, 1, 0};
 
 static struct add_to_pl_param addtopl_replace          = {PLAYLIST_INSERT, 0, 1};
 static struct add_to_pl_param addtopl_replace_shuffled = {PLAYLIST_INSERT_LAST_SHUFFLED, 0, 1};
@@ -728,6 +729,9 @@ MENUITEM_FUNCTION_W_PARAM(q_shuf_pl_item, 0, ID2P(LANG_QUEUE_SHUFFLED),
 MENUITEM_FUNCTION_W_PARAM(q_last_shuf_pl_item, 0, ID2P(LANG_QUEUE_LAST_SHUFFLED),
                   add_to_playlist, &addtopl_queue_last_shuf,
                   treeplaylist_callback, Icon_Playlist);
+MENUITEM_FUNCTION_W_PARAM(q_next_shuf_pl_item, 0, ID2P(LANG_QUEUE_NEXT_SHUFFLED),
+                  add_to_playlist, &addtopl_queue_next_shuf,
+                  treeplaylist_callback, Icon_Playlist);
 
 /* queue submenu */
 MAKE_ONPLAYMENU(queue_menu, ID2P(LANG_QUEUE_MENU),
@@ -736,7 +740,8 @@ MAKE_ONPLAYMENU(queue_menu, ID2P(LANG_QUEUE_MENU),
                 &q_pl_item,
                 &q_shuf_pl_item,
                 &q_last_pl_item,
-                &q_last_shuf_pl_item);
+                &q_last_shuf_pl_item,
+                &q_next_shuf_pl_item);
 
 /* replace playlist */
 MENUITEM_FUNCTION_W_PARAM(replace_pl_item, 0, ID2P(LANG_PLAY),
@@ -764,6 +769,7 @@ MAKE_ONPLAYMENU(tree_playlist_menu, ID2P(LANG_PLAYING_NEXT),
                 &q_last_pl_item,
                 &q_shuf_pl_item,
                 &q_last_shuf_pl_item,
+                &q_next_shuf_pl_item,
 
                 /* Queue submenu */
                 &queue_menu,
