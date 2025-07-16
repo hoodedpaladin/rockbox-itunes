@@ -2862,6 +2862,36 @@ int playlist_insert_track(struct playlist_info* playlist, const char *filename,
     return result;
 }
 
+void playlist_queue_all(bool queue)
+{
+    struct playlist_info *playlist = &current_playlist;
+    int i;
+
+    dc_thread_stop(playlist);
+    playlist_write_lock(playlist);
+
+    if (check_control(playlist) < 0)
+    {
+        notify_control_access_error();
+        return;
+    }
+
+    for (i = 0; i < playlist->amount; i++)
+    {
+        if (queue)
+        {
+            playlist->indices[i] |= PLAYLIST_QUEUED;
+        }
+        else
+        {
+            playlist->indices[i] &= ~PLAYLIST_QUEUED;
+        }
+    }
+
+    playlist_write_unlock(playlist);
+    dc_thread_start(playlist, true);
+}
+
 /* returns true if playlist has been modified by the user */
 bool playlist_modified(const struct playlist_info* playlist)
 {
