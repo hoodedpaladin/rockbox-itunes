@@ -10912,6 +10912,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_QUEUE_NEXT_SHUFFLED
+  desc: in onplay menu.  queue a playlist randomly after current song
+  user: core
+  <source>
+    *: "Queue Next Shuffled"
+  </source>
+  <dest>
+    *: "Queue Next Shuffled"
+  </dest>
+  <voice>
+    *: "Queue Next Shuffled"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_MORSE_INPUT
   desc: in Settings -> System
   user: core
