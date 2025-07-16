@@ -545,6 +545,20 @@ static int wps_view_cur_playlist(void)
     return 0;
 }
 
+static int queue_all(void)
+{
+    playlist_queue_all(true);
+
+    return false;
+}
+
+static int unqueue_all(void)
+{
+    playlist_queue_all(false);
+
+    return false;
+}
+
 MENUITEM_FUNCTION(wps_view_cur_playlist_item, 0, ID2P(LANG_VIEW_DYNAMIC_PLAYLIST),
                   wps_view_cur_playlist, NULL, Icon_NOICON);
 MENUITEM_FUNCTION(search_playlist_item, 0, ID2P(LANG_SEARCH_IN_PLAYLIST),
@@ -555,10 +569,19 @@ MENUITEM_FUNCTION(reshuffle_item, 0, ID2P(LANG_SHUFFLE_PLAYLIST),
                   shuffle_playlist, NULL, Icon_Playlist);
 MENUITEM_FUNCTION(playing_time_item, 0, ID2P(LANG_PLAYING_TIME),
                   playing_time, NULL, Icon_Playlist);
+MENUITEM_FUNCTION(queue_all_item, 0, ID2P(LANG_QUEUE_ALL),
+                  queue_all, NULL, Icon_Playlist);
+MENUITEM_FUNCTION(unqueue_all_item, 0, ID2P(LANG_UNQUEUE_ALL),
+                  unqueue_all, NULL, Icon_Playlist);
 MAKE_ONPLAYMENU( wps_playlist_menu, ID2P(LANG_CURRENT_PLAYLIST),
                  NULL, Icon_Playlist,
-                 &wps_view_cur_playlist_item, &search_playlist_item,
-                 &playlist_save_item, &reshuffle_item, &playing_time_item
+                 &wps_view_cur_playlist_item,
+                 &search_playlist_item,
+                 &queue_all_item,
+                 &unqueue_all_item,
+                 &playlist_save_item,
+                 &reshuffle_item,
+                 &playing_time_item
                );
 
 /* argument for add_to_playlist (for use by menu callbacks) */

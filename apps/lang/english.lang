@@ -11024,6 +11024,34 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_QUEUE_ALL
+  desc: in onplay menu.  make all tracks queued.
+  user: core
+  <source>
+    *: "Set All Queued"
+  </source>
+  <dest>
+    *: "Set All Queued"
+  </dest>
+  <voice>
+    *: "Set All Queued"
+  </voice>
+</phrase>
+<phrase>
+  id: LANG_UNQUEUE_ALL
+  desc: in onplay menu.  make all tracks unqueued.
+  user: core
+  <source>
+    *: "Set All Unqueued"
+  </source>
+  <dest>
+    *: "Set All Unqueued"
+  </dest>
+  <voice>
+    *: "Set All Unqueued"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_MORSE_INPUT
   desc: in Settings -> System
   user: core

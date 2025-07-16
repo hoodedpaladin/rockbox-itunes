@@ -146,6 +146,7 @@ int playlist_create_ex(struct playlist_info* playlist,
 int playlist_set_current(struct playlist_info* playlist);
 void playlist_close(struct playlist_info* playlist);
 void playlist_sync(struct playlist_info* playlist);
+void playlist_queue_all(bool queue);
 int playlist_insert_track(struct playlist_info* playlist, const char *filename,
                           int position, bool queue, bool sync);
 int playlist_insert_directory(struct playlist_info* playlist,
