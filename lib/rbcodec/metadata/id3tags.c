@@ -792,6 +792,7 @@ void setid3v2title(int fd, struct mp3entry *entry)
     int i;
     int rc;
     bool itunes_gapless = false;
+    bool itunes_comment = false;
 
 #ifdef HAVE_ALBUMART
     entry->has_embedded_albumart = false;
@@ -1024,6 +1025,7 @@ retry_with_limit:
             }
 
             if( !memcmp( header, tr->tag, tr->tag_length ) ) {
+                itunes_comment = false;
 
                 if (bufferpos >= buffersize - 1)
                 {
@@ -1061,6 +1063,8 @@ retry_with_limit:
                         return; /* Error ?? */
 
                     if(bytesread >= 8 && !strncmp(tag+4, "iTun", 4)) {
+                        // We don't want garbage from itunes in our text comments
+                        itunes_comment = true;
                         /* check for iTunes gapless information */
                         if(bytesread >= 12 && !strncmp(tag+4, "iTunSMPB", 8))
                             itunes_gapless = true;
@@ -1144,7 +1148,7 @@ retry_with_limit:
                  * particular) be updated to handle the case of being called
                  * multiple times, or should the "*ptag" check be removed?
                  */
-                if (ptag && !*ptag)
+                if (ptag && !*ptag && !itunes_comment)
                     *ptag = tag;
 
 #ifdef HAVE_ALBUMART
