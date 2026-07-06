@@ -202,9 +202,8 @@ static void scrobbler_finish_event(unsigned short id, void *data)
     struct track_event *te = (struct track_event *)data;
 
     /* add entry using the currently ending track */
-    if (pending && (te->flags & TEF_CURRENT)
-        && !(te->flags & TEF_REWIND)
-    )
+    if (pending && (te->flags & TEF_CURRENT))
+        //&& !(te->flags & TEF_REWIND)
     {
         pending = false;
         add_to_cache(te->id3);
