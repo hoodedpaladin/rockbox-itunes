@@ -3093,7 +3093,7 @@ int playlist_next(int steps)
         {
             index = get_next_index(playlist, i, -1);
 
-            if (index >= 0 && playlist->indices[index] & PLAYLIST_QUEUE_MASK)
+            if (global_settings.queue_everything || (index >= 0 && playlist->indices[index] & PLAYLIST_QUEUE_MASK))
             {
                 remove_track_unlocked(playlist, index, true);
                 steps--; /* one less track */

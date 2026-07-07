@@ -16753,3 +16753,17 @@
     *: "Play Next Shuffled"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_QUEUE_EVERYTHING
+  desc: play settings
+  user: core
+  <source>
+    *: "Queue Everything"
+  </source>
+  <dest>
+    *: "Queue Everything"
+  </dest>
+  <voice>
+    *: "Queue Everything"
+  </voice>
+</phrase>
