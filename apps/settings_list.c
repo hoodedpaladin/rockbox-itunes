@@ -1280,6 +1280,7 @@ const struct settings_list settings[] = {
 #endif
     /* more playback */
     OFFON_SETTING(0,play_selected,LANG_PLAY_SELECTED,true,"play selected",NULL),
+    OFFON_SETTING(0,queue_everything,LANG_QUEUE_EVERYTHING,false,"queue everything",NULL),
     CHOICE_SETTING(0, single_mode, LANG_SINGLE_MODE, 0,
                   "single mode",
                   "off,track,album,album artist,artist,composer,work,genre",
