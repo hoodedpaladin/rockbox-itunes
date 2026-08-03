@@ -53,6 +53,7 @@
 #include "viewport.h"
 #include "language.h"
 #include "replaygain.h"
+#include "tagcache.h"
 
 #include "ctype.h"
 
@@ -381,6 +382,7 @@ static const int id3_headers[]=
     LANG_ID3_YEAR,
     LANG_ID3_LENGTH,
     LANG_ID3_PLAYLIST,
+    LANG_ID3_LASTPLAYED,
     LANG_FORMAT,
     LANG_ID3_BITRATE,
     LANG_ID3_FREQUENCY,
@@ -395,10 +397,12 @@ static const int id3_headers[]=
 struct id3view_info {
     struct mp3entry* id3;
     struct tm *modified;
+    struct tm lastplayed;
     int track_ct;
     int count;
     int playlist_display_index;
     int playlist_amount;
+    int lastplayederror;
     int info_id[ARRAYLEN(id3_headers)];
 };
 
@@ -721,6 +725,24 @@ static const char * id3_get_or_speak_info(int selected_item, void* data,
                 if (say_it)
                     talk_time(tm, true);
                 break;
+            case LANG_ID3_LASTPLAYED:
+                if (info->lastplayederror != 0)
+                {
+                    snprintf(buffer, buffer_len, "error %d", info->lastplayederror);
+                    val = buffer;
+                    if(say_it)
+                        talk_number(info->lastplayederror, true);
+                }
+                else
+                {
+                    snprintf(buffer, buffer_len, "%04d/%02d/%02d",
+                             info->lastplayed.tm_year + 1900, info->lastplayed.tm_mon + 1, info->lastplayed.tm_mday);
+
+                    val = buffer;
+                    if (say_it)
+                        talk_date(&info->lastplayed, true);
+                }
+                break;
         }
         if((!val || !*val) && say_it)
             talk_id(LANG_ID3_NO_INFO, true);
@@ -776,6 +798,47 @@ refresh_info:
         info.info_id[i] = i;
         if (id3_get_or_speak_info((i*2)+1, &info, temp, 8, false) != NULL)
             info.info_id[info.count++] = i;
+    }
+
+    // Get lastplayed date from tagcache
+    info.lastplayederror = -1;
+    if (track_ct == 1)
+    {
+        if(tagcache_is_fully_initialized())
+        {
+            struct tagcache_search tcs;
+
+            if (tagcache_find_index(&tcs, id3->path))
+            {
+                long timestamp = tagcache_get_numeric(&tcs, tag_lastplayed);
+                if (timestamp > 0)
+                {
+                    info.lastplayederror = 0;
+                    gmtime_r(&timestamp, &info.lastplayed);
+                }
+                else if (timestamp == 0)
+                {
+                    info.lastplayederror = -5;
+                }
+                else
+                {
+                    info.lastplayederror = -6;
+                }
+                tagcache_search_finish(&tcs);
+            }
+            else
+            {
+                info.lastplayederror = -4;
+            }
+        }
+        else
+        {
+            info.lastplayederror = -3;
+        }
+    }
+    else
+    {
+        info.lastplayederror = -2;
     }
 
     gui_synclist_init(&id3_lists, &id3_get_name_cb, &info, true, 2, NULL);

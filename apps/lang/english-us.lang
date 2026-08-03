@@ -16699,3 +16699,17 @@
     *: "Queue Everything"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_ID3_LASTPLAYED
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Last Played"
+  </source>
+  <dest>
+    *: "Last Played"
+  </dest>
+  <voice>
+    *: "Last Played"
+  </voice>
+</phrase>
