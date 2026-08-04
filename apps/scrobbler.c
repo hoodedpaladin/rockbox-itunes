@@ -36,6 +36,7 @@ http://www.audioscrobbler.net/wiki/Portable_Player_Logging
 #include "pathfuncs.h"
 #include "appevents.h"
 #include "string-extra.h"
+#include "misc.h"
 #if CONFIG_RTC
 #include "time.h"
 #include "timefuncs.h"
@@ -143,6 +144,31 @@ static void scrobbler_flush_callback(void)
         write_cache();
 }
 
+static void addToRecentlyPlayed(const struct mp3entry *id)
+{
+    static const char *playlist_name = "/Playlists/ZZZPlayedOnRockbox.m3u8";
+    int fd;
+
+    if (!id->path) return;
+
+    if(!file_exists(playlist_name))
+    {
+        fd = open_utf8(playlist_name, O_CREAT|O_WRONLY|O_TRUNC);
+    }
+    else
+    {
+        fd = open(playlist_name, O_WRONLY | O_APPEND);
+    }
+
+    if (fd < 0)
+    {
+        return;
+    }
+
+    fdprintf(fd, "%s\n", id->path);
+    close(fd);
+}
+
 static void add_to_cache(const struct mp3entry *id)
 {
     if ( cache_pos >= SCROBBLER_MAX_CACHE )
@@ -183,6 +209,10 @@ static void add_to_cache(const struct mp3entry *id)
         register_storage_idle_func(scrobbler_flush_callback);
     }
 
+    if (id->elapsed > (id->length / 2))
+    {
+        addToRecentlyPlayed(id);
+    }
 }
 
 static void scrobbler_change_event(unsigned short id, void *ev_data)

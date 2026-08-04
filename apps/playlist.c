@@ -2387,6 +2387,139 @@ out:
     return result;
 }
 
+int getCrcsFromFileOfNames(int fd, int max, unsigned int *crcs)
+{
+    int count = 0;
+    char buf[MAX_PATH+1];
+    int length;
+
+    while (count < max)
+    {
+        length = read_line(fd, buf, MAX_PATH+1);
+        if (length <= 0) break;
+        if (length > MAX_PATH) continue;
+
+        int i;
+        const char *basename;
+#ifdef HAVE_MULTIVOLUME
+        /* remove the volume identifier it might change just use the relative part*/
+        path_strip_volume(buf, &basename, false);
+        if (basename == NULL)
+#endif
+            basename = buf;
+        crcs[count++] = crc_32(basename, strlen(basename), -1);
+
+        // Collapse duplicates
+        for (i = 0; (i+1) < count; i++)
+        {
+            if (crcs[i] == crcs[count-1])
+            {
+                count--;
+                break;
+            }
+        }
+    }
+
+    return count;
+}
+
+int playlist_delete_all_recently_played(struct playlist_info* playlist, struct gui_synclist *pplaylist_lists)
+{
+    int result = 0;
+    int amount_removed = 0;
+#define CRC_STORAGE (32)
+    unsigned int crcs[CRC_STORAGE];
+    static const char *playlist_name = "/Playlists/ZZZPlayedOnRockbox.m3u8";
+    int num_crcs;
+    int fd;
+
+    // Open file
+    fd = open_utf8(playlist_name, O_RDONLY);
+    if (fd < 0)
+    {
+        return -1;
+    }
+
+    if (!playlist)
+        playlist = &current_playlist;
+
+    // Lock and thread stuff
+    dc_thread_stop(playlist);
+    playlist_write_lock(playlist);
+
+    if (check_control(playlist) < 0)
+    {
+        notify_control_access_error();
+        result = -1;
+        goto out;
+    }
+
+    // Trawl file several CRCs at a time
+    while ((num_crcs = getCrcsFromFileOfNames(fd, CRC_STORAGE, crcs)) > 0)
+    {
+        // Check whole list against chunk of CRCs
+        int offset = 0;
+        while (offset < playlist->amount)
+        {
+            int index = (playlist->first_index + offset) % playlist->amount;
+            int crc_index;
+            bool found_match = false;
+            unsigned int track_crc;
+
+            if (index == playlist->index)
+            {
+                offset += 1;
+                continue;
+            }
+
+            track_crc = playlist_get_filename_crc32(playlist, index);
+
+            for (crc_index = 0; crc_index < num_crcs; crc_index++)
+            {
+                if (crcs[crc_index] == track_crc)
+                {
+                    found_match = true;
+                    break;
+                }
+            }
+
+            if (found_match)
+            {
+                result = remove_track_unlocked(playlist, index, true);
+                if (result < 0)
+                {
+                    goto out;
+                }
+                amount_removed += 1;
+                continue;
+            }
+
+            offset += 1;
+            continue;
+        }
+    }
+
+out:
+    close(fd);
+    playlist_write_unlock(playlist);
+    dc_thread_start(playlist, false);
+
+    if (result != -1 && (audio_status() & AUDIO_STATUS_PLAY) &&
+        playlist->started)
+        audio_flush_and_reload_tracks();
+
+    // Outside the lock, update the GUI as necessary
+    if ((result != -1) && (amount_removed > 0))
+    {
+        if (pplaylist_lists != NULL)
+        {
+            gui_synclist_del_items(pplaylist_lists, amount_removed);
+        }
+    }
+
+    return result;
+}
+
 /*
  * Search specified directory for tracks and notify via callback.  May be
  * called recursively.
