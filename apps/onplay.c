@@ -565,6 +565,13 @@ static int unqueue_all(void)
     return false;
 }
 
+static int remove_recent(void)
+{
+    playlist_delete_all_recently_played(NULL, NULL);
+
+    return false;
+}
+
 MENUITEM_FUNCTION(wps_view_cur_playlist_item, 0, ID2P(LANG_VIEW_DYNAMIC_PLAYLIST),
                   wps_view_cur_playlist, NULL, Icon_NOICON);
 MENUITEM_FUNCTION(search_playlist_item, 0, ID2P(LANG_SEARCH_IN_PLAYLIST),
@@ -579,6 +586,8 @@ MENUITEM_FUNCTION(queue_all_item, 0, ID2P(LANG_QUEUE_ALL),
                   queue_all, NULL, Icon_Playlist);
 MENUITEM_FUNCTION(unqueue_all_item, 0, ID2P(LANG_UNQUEUE_ALL),
                   unqueue_all, NULL, Icon_Playlist);
+MENUITEM_FUNCTION(remove_recent_item, 0, ID2P(LANG_REMOVE_ALL_RECENTLY_PLAYED),
+                  remove_recent, NULL, Icon_Playlist);
 MAKE_ONPLAYMENU( wps_playlist_menu, ID2P(LANG_CURRENT_PLAYLIST),
                  NULL, Icon_Playlist,
                  &wps_view_cur_playlist_item,
@@ -587,6 +596,7 @@ MAKE_ONPLAYMENU( wps_playlist_menu, ID2P(LANG_CURRENT_PLAYLIST),
                  &unqueue_all_item,
                  &playlist_save_item,
                  &reshuffle_item,
+                 &remove_recent_item,
                  &playing_time_item
                );
 
