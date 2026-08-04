@@ -16727,3 +16727,17 @@
     *: "Remove All Recently Played"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_REMOVE_DUPLICATES
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Remove Duplicates"
+  </source>
+  <dest>
+    *: "Remove Duplicates"
+  </dest>
+  <voice>
+    *: "Remove Duplicates"
+  </voice>
+</phrase>
