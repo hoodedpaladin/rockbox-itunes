@@ -2509,6 +2509,127 @@ out:
     return result;
 }
 
+int playlist_delete_duplicates(struct playlist_info* playlist, struct gui_synclist *pplaylist_lists)
+{
+    int result = 0;
+    int amount_removed = 0;
+#define CRC_STORAGE (32)
+    unsigned int crcs[CRC_STORAGE];
+
+    if (!playlist)
+        playlist = &current_playlist;
+
+    // Lock and thread stuff
+    dc_thread_stop(playlist);
+    playlist_write_lock(playlist);
+
+    if (check_control(playlist) < 0)
+    {
+        notify_control_access_error();
+        result = -1;
+        goto out;
+    }
+
+    // Base offset = the number of tracks that have already been checked
+    int base_offset = 0;
+    while (base_offset < playlist->amount)
+    {
+        int num_crcs = 0;
+        int offset = base_offset;
+        while ((num_crcs < CRC_STORAGE) && (offset < playlist->amount))
+        {
+            int index = offset % playlist->amount;
+            int crc_index;
+            bool found_match = false;
+
+            crcs[num_crcs++] = playlist_get_filename_crc32(playlist, index);
+
+            // Detect duplicate here, while we're still building the list
+            // If index == current, then don't detect dupes. We'll be fine.
+            if (index != playlist->index)
+            {
+                for (crc_index = 0; (crc_index + 1) < num_crcs; crc_index++)
+                {
+                    if (crcs[crc_index] == crcs[num_crcs-1])
+                    {
+                        found_match = true;
+                        break;
+                    }
+                }
+
+                if (found_match)
+                {
+                    result = remove_track_unlocked(playlist, index, true);
+                    if (result < 0)
+                    {
+                        goto out;
+                    }
+                    amount_removed += 1;
+                    num_crcs--;
+                    offset--;
+                }
+            }
+            offset++;
+        }
+
+        // Detect duplicates against the rest of the list
+        while (offset < playlist->amount)
+        {
+            int index = offset % playlist->amount;
+
+            if (index != playlist->index)
+            {
+                unsigned int crc = playlist_get_filename_crc32(playlist, index);
+                int crc_index;
+                bool found_match = false;
+
+                for (crc_index = 0; crc_index < num_crcs; crc_index++)
+                {
+                    if (crcs[crc_index] == crc)
+                    {
+                        found_match = true;
+                        break;
+                    }
+                }
+
+                if (found_match)
+                {
+                    result = remove_track_unlocked(playlist, index, true);
+                    if (result < 0)
+                    {
+                        goto out;
+                    }
+                    amount_removed += 1;
+                    offset--;
+                }
+            }
+            offset++;
+        }
+
+        // Move base_offset up
+        base_offset += num_crcs;
+    }
+
+out:
+    playlist_write_unlock(playlist);
+    dc_thread_start(playlist, false);
+
+    if (result != -1 && (audio_status() & AUDIO_STATUS_PLAY) &&
+        playlist->started)
+        audio_flush_and_reload_tracks();
+
+    // Outside the lock, update the GUI as necessary
+    if ((result != -1) && (amount_removed > 0))
+    {
+        if (pplaylist_lists != NULL)
+        {
+            gui_synclist_del_items(pplaylist_lists, amount_removed);
+        }
+    }
+
+    return result;
+}
+
 /*
  * Search specified directory for tracks and notify via callback.  May be
  * called recursively.
