@@ -17337,3 +17337,17 @@
     *: "Last Played"
   </voice>
 </phrase>
+<phrase>
+  id: LANG_REMOVE_ALL_RECENTLY_PLAYED
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Remove All Recently Played"
+  </source>
+  <dest>
+    *: "Remove All Recently Played"
+  </dest>
+  <voice>
+    *: "Remove All Recently Played"
+  </voice>
+</phrase>
