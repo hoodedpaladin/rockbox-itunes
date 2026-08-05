@@ -79,7 +79,6 @@ static const struct filetype_inbuilt inbuilt_filetypes[] = {
     { "fmr",  FILE_ATTR_FMR },
     { "fms",  FILE_ATTR_FMS },
 #endif
-    { "log",  FILE_ATTR_LOG   },
     { "lng",  FILE_ATTR_LNG   },
     { "rock", FILE_ATTR_ROCK  },
     { "lua",  FILE_ATTR_LUA   },
