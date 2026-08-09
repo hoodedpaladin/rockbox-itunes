@@ -52,7 +52,7 @@ void ata_get_info(IF_MD(int drive,)struct storage_info *info)
     int i;
 
     info->sector_size = log_sector_size;
-    info->num_sectors = total_sectors;
+    info->num_sectors = total_sectors >> SIZE_SHIFT;
 #ifdef MAX_PHYS_SECTOR_SIZE
     info->phys_sector_mult = phys_sector_mult;
 #endif
@@ -312,6 +312,11 @@ static int ata_get_phys_sector_mult(void)
                phys_sector_mult * log_sector_size);
 
     memset(&sector_cache, 0, sizeof(sector_cache));
+
+    if ((!ceata) && (log_sector_size != 4096))
+    {
+        panicf("Unsupported logical sector size: %ld", log_sector_size);
+    }
 
     return 0;
 }

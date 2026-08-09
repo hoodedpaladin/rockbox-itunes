@@ -62,6 +62,9 @@
 #define CEATA_DAT_NONBUSY_TIMEOUT 5000000
 #define CEATA_MMC_RCA 1
 
+#define SIZE_SHIFT (identify_info[106]-9)
+#define SHIFTED(x) (x << SIZE_SHIFT)
+
 /** static, private data **/
 static uint8_t ceata_taskfile[16] STORAGE_ALIGN_ATTR;
 static bool ceata;
@@ -556,6 +559,7 @@ static int ata_identify(uint16_t* buf)
         for (i = 0; i < ATA_IDENTIFY_WORDS; i++)
             buf[i] = ata_read_cbr(&ATA_PIO_DTR);
     }
+    buf[106] = 12;
     return 0;
 }
 
@@ -821,14 +825,14 @@ static int ata_rw_chunk_internal(uint64_t sector, uint32_t cnt, void* buffer, bo
         ata_write_cbr(&ATA_PIO_DVR, 0);
         if (ata_lba48)
         {
-            ata_write_cbr(&ATA_PIO_SCR, (cnt >> 8) & 0xff);
-            ata_write_cbr(&ATA_PIO_SCR, (cnt) & 0xff);
-            ata_write_cbr(&ATA_PIO_LHR, (sector >> 40) & 0xff);
-            ata_write_cbr(&ATA_PIO_LMR, (sector >> 32) & 0xff);
-            ata_write_cbr(&ATA_PIO_LLR, (sector >> 24) & 0xff);
-            ata_write_cbr(&ATA_PIO_LHR, (sector >> 16) & 0xff);
-            ata_write_cbr(&ATA_PIO_LMR, (sector >> 8) & 0xff);
-            ata_write_cbr(&ATA_PIO_LLR, (sector) & 0xff);
+            ata_write_cbr(&ATA_PIO_SCR, (SHIFTED(cnt) >> 8) & 0xff);
+            ata_write_cbr(&ATA_PIO_SCR, (SHIFTED(cnt)) & 0xff);
+            ata_write_cbr(&ATA_PIO_LHR, (SHIFTED(sector) >> 40) & 0xff);
+            ata_write_cbr(&ATA_PIO_LMR, (SHIFTED(sector) >> 32) & 0xff);
+            ata_write_cbr(&ATA_PIO_LLR, (SHIFTED(sector) >> 24) & 0xff);
+            ata_write_cbr(&ATA_PIO_LHR, (SHIFTED(sector) >> 16) & 0xff);
+            ata_write_cbr(&ATA_PIO_LMR, (SHIFTED(sector) >> 8) & 0xff);
+            ata_write_cbr(&ATA_PIO_LLR, (SHIFTED(sector)) & 0xff);
             ata_write_cbr(&ATA_PIO_DVR, BIT(6));
             if (write)
                 ata_write_cbr(&ATA_PIO_CSD, ata_dma ? CMD_WRITE_DMA_EXT : CMD_WRITE_MULTIPLE_EXT);
@@ -837,11 +841,11 @@ static int ata_rw_chunk_internal(uint64_t sector, uint32_t cnt, void* buffer, bo
         }
         else
         {
-            ata_write_cbr(&ATA_PIO_SCR, (cnt) & 0xff);
-            ata_write_cbr(&ATA_PIO_LHR, (sector >> 16) & 0xff);
-            ata_write_cbr(&ATA_PIO_LMR, (sector >> 8) & 0xff);
-            ata_write_cbr(&ATA_PIO_LLR, (sector) & 0xff);
-            ata_write_cbr(&ATA_PIO_DVR, BIT(6) | ((sector >> 24) & 0xf)); /* LBA28, mask off upper 4 bits of 32-bit sector address */
+            ata_write_cbr(&ATA_PIO_SCR, (SHIFTED(cnt)) & 0xff);
+            ata_write_cbr(&ATA_PIO_LHR, (SHIFTED(sector) >> 16) & 0xff);
+            ata_write_cbr(&ATA_PIO_LMR, (SHIFTED(sector) >> 8) & 0xff);
+            ata_write_cbr(&ATA_PIO_LLR, (SHIFTED(sector)) & 0xff);
+            ata_write_cbr(&ATA_PIO_DVR, BIT(6) | ((SHIFTED(sector) >> 24) & 0xf)); /* LBA28, mask off upper 4 bits of 32-bit sector address */
             if (write)
                 ata_write_cbr(&ATA_PIO_CSD, ata_dma ? CMD_WRITE_DMA : CMD_WRITE_SECTORS);
             else
@@ -882,17 +886,18 @@ static int ata_rw_chunk_internal(uint64_t sector, uint32_t cnt, void* buffer, bo
         else
 #endif // HAVE_ATA_DMA
         {
+            cnt <<= SIZE_SHIFT;
             while (cnt--)
             {
                 uint16_t i;
                 PASS_RC(ata_wait_for_start_of_transfer(500000), 2, 1);
                 if (write)
-                    for (i = 0; i < log_sector_size/2; i++)
+                    for (i = 0; i < 512/2; i++)
                         ata_write_cbr(&ATA_PIO_DTR, ((uint16_t*)buffer)[i]);
                 else
-                    for (i = 0; i < log_sector_size/2; i++)
+                    for (i = 0; i < 512/2; i++)
                         ((uint16_t*)buffer)[i] = ata_read_cbr(&ATA_PIO_DTR);
-                buffer += log_sector_size;
+                buffer += 512;
             }
         }
         PASS_RC(ata_wait_for_end_of_transfer(100000), 2, 3);
@@ -910,6 +915,10 @@ static int ata_rw_chunk(uint64_t sector, uint32_t cnt, void* buffer, bool write)
 
 static int ata_transfer_sectors(uint64_t sector, int count, void* buffer, int write)
 {
+    if (STORAGE_OVERLAP((uint32_t)buffer))
+    {
+        panicf("Misaligned buffer 0x%lX", (uint32_t)buffer);
+    }
     if (!ata_powered)
         ata_power_up();
     if (sector + count > total_sectors)
@@ -926,7 +935,7 @@ static int ata_transfer_sectors(uint64_t sector, int count, void* buffer, int wr
 
     while (count)
     {
-        uint32_t cnt = MIN(ata_lba48 ? 65536 : 256, count);
+        uint32_t cnt = MIN(ata_lba48 ? 65536 >> SIZE_SHIFT : 256 >> SIZE_SHIFT, count);
         int rc = -1;
         rc = ata_rw_chunk(sector, cnt, buffer, write);
         if (rc && ata_error_srst)
@@ -1166,7 +1175,8 @@ int ata_init(void)
     else if ((identify_info[106] & 0xd000) == 0x5000) /* B14, B12 */
         log_sector_size = (identify_info[117] | (identify_info[118] << 16)) * 2;
     else
-        log_sector_size = 512;
+        //log_sector_size = 512;
+        log_sector_size = 4096;
 
 #ifndef MAX_VARIABLE_LOG_SECTOR
     if (log_sector_size != SECTOR_SIZE)
@@ -1180,6 +1190,8 @@ int ata_init(void)
     rc = ata_get_phys_sector_mult();
     if (IS_ERR(rc))
         return rc;
+    if ((!ceata) && (phys_sector_mult != 1))
+        panicf("Unexpected phys_sector_mult %lu", log_sector_size);
 #endif
 
     return 0;
