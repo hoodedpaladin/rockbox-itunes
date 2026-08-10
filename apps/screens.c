@@ -804,27 +804,42 @@ refresh_info:
     info.lastplayederror = -1;
     if (track_ct == 1)
     {
-        if(tagcache_is_fully_initialized())
+        if (id3->path)
         {
-            struct tagcache_search tcs;
-
-            if (tagcache_find_index(&tcs, id3->path))
+            if(tagcache_is_fully_initialized())
             {
-                long timestamp = tagcache_get_numeric(&tcs, tag_lastplayed);
-                if (timestamp > 0)
+                struct tagcache_search tcs;
+
+                const char *basename;
+#ifdef HAVE_MULTIVOLUME
+                /* remove the volume identifier it might change just use the relative part*/
+                path_strip_volume(id3->path, &basename, false);
+                if (basename == NULL)
+#endif
+                    basename = id3->path;
+
+                if (tagcache_find_index(&tcs, basename))
                 {
-                    info.lastplayederror = 0;
-                    gmtime_r(&timestamp, &info.lastplayed);
-                }
-                else if (timestamp == 0)
-                {
-                    info.lastplayederror = -5;
+                    long timestamp = tagcache_get_numeric(&tcs, tag_lastplayed);
+                    if (timestamp > 0)
+                    {
+                        info.lastplayederror = 0;
+                        gmtime_r(&timestamp, &info.lastplayed);
+                    }
+                    else if (timestamp == 0)
+                    {
+                        info.lastplayederror = -6;
+                    }
+                    else
+                    {
+                        info.lastplayederror = -7;
+                    }
+                    tagcache_search_finish(&tcs);
                 }
                 else
                 {
-                    info.lastplayederror = -6;
+                    info.lastplayederror = -5;
                 }
-                tagcache_search_finish(&tcs);
             }
             else
             {
