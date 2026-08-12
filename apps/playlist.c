@@ -4494,7 +4494,21 @@ failure:
     return result;
 }
 
-static int getTagcacheValue(const char *path, long *pData)
+int getTagcacheValueWithoutDircache(const char *basename, long *pData, int tag_type)
+{
+    // Get lastplayed date from tagcache
+    if(!tagcache_is_fully_initialized()) return -1;
+
+    struct tagcache_search tcs;
+
+    if (!tagcache_find_index(&tcs, basename)) return -2;
+
+    *pData = tagcache_get_numeric(&tcs, tag_type);
+    tagcache_search_finish(&tcs);
+    return 0;
+}
+
+static int getTagcacheValue(const char *path, long *pData, int tag_type)
 {
     // Get lastplayed date from tagcache
     if (!path) return -1;
@@ -4507,99 +4521,244 @@ static int getTagcacheValue(const char *path, long *pData)
     if (basename == NULL)
 #endif
         basename = path;
-
-    struct mp3entry id3;
-
-    if (!tagcache_fill_tags(&id3, basename)) return -5;
-    *pData = id3.lastplayed;
+#ifdef HAVE_DIRCACHE
+    if (tagcache_fill_tag(pData, basename, tag_type)) return -5;
     return 0;
+#else
+    return getTagcacheValueWithoutDircache(basename, pData, tag_type);
+#endif
 }
 
 struct playlistSort
 {
     unsigned long index;
     long data;
+#ifdef HAVE_DIRCACHE
     struct dircache_fileref ref;
+#endif //HAVE_DIRCACHE
 };
 
 static struct playlistSort *g_sortData = NULL;
+static bool g_reverse_sort = false;
+struct playlist_info *g_sort_playlist = NULL;
 
+// playlistSort->data = the tag in question, or the index
 static int sort_compare_fn_tagcache(const void* p1, const void* p2)
 {
     struct playlistSort *item1 = (struct playlistSort *)p1;
     struct playlistSort *item2 = (struct playlistSort *)p2;
 
-    if (item1->data < item2->data) return -1;
-    if (item1->data > item2->data) return 1;
-    return sort_compare_fn(&item1->index, &item2->index);
+    if (!g_reverse_sort)
+    {
+        if (item1->data < item2->data) return -1;
+        if (item1->data > item2->data) return 1;
+        return sort_compare_fn(&item1->index, &item2->index);
+    }
+    else
+    {
+        if (item1->data > item2->data) return -1;
+        if (item1->data < item2->data) return 1;
+        return 0 - sort_compare_fn(&item1->index, &item2->index);
+    }
 }
 
-static void playlist_sort_by_tagcache_unlocked(struct playlist_info* playlist)
+// playlistSort->data = track index so that filename can be retrieved
+static int sort_compare_fn_filename(const void* p1, const void* p2)
 {
+    struct playlistSort *item1 = (struct playlistSort *)p1;
+    struct playlistSort *item2 = (struct playlistSort *)p2;
+    char filename1[MAX_PATH];
+    char filename2[MAX_PATH];
+
+    if (get_track_filename(g_sort_playlist, item1->data, filename1, sizeof(filename1))) return 0;
+    if (get_track_filename(g_sort_playlist, item2->data, filename2, sizeof(filename2))) return 0;
+
+
+    const char *basename1 = filename1;
+    const char *basename2 = filename2;
+#ifdef HAVE_MULTIVOLUME
+    /* remove the volume identifier it might change just use the relative part*/
+    path_strip_volume(filename1, &basename1, false);
+    if (basename1 == NULL) basename1 = filename1;
+    path_strip_volume(filename2, &basename2, false);
+    if (basename2 == NULL) basename2 = filename2;
+#endif
+
+    if (!g_reverse_sort)
+    {
+        return strcasecmp(basename1, basename2);
+    }
+    else
+    {
+        return 0 - strcasecmp(basename1, basename2);
+    }
+}
+
+static int playlist_sort_by_tagcache_unlocked(struct playlist_info* playlist, int sort_type, bool quit_on_error)
+{
+    int result = 0;
     int i;
     unsigned long current = playlist->indices[playlist->index];
 
+#ifdef HAVE_DIRCACHE
     struct dircache_fileref *dcfrefs = NULL;
     if (playlist->dcfrefs_handle)
     {
         dcfrefs = core_get_data(playlist->dcfrefs_handle);
     }
+#endif //HAVE_DIRCACHE
 
     cpu_boost(true);
 
     // Get tagcache data
     for (i = 0; i < playlist->amount; i++)
     {
+        // Static playlist data
         g_sortData[i].index = playlist->indices[i];
-        g_sortData[i].data = 0;
+#ifdef HAVE_DIRCACHE
         if (dcfrefs) g_sortData[i].ref = dcfrefs[i];
+#endif //HAVE_DIRCACHE
 
-        struct playlist_track_info track_info;
-        if (playlist_get_track_info(playlist, i, &track_info) == 0)
+        if ((sort_type == PLAYLIST_SORT_REVERSE) ||
+            (sort_type == PLAYLIST_SORT_FILENAME))
         {
-            getTagcacheValue(track_info.filename, &g_sortData[i].data);
+            g_sortData[i].data = i;
+        }
+        else if ((sort_type == PLAYLIST_SORT_LASTPLAYED) ||
+                 (sort_type == PLAYLIST_SORT_LASTPLAYEDREV) ||
+                 (sort_type == PLAYLIST_SORT_PLAYCOUNT) ||
+                 (sort_type == PLAYLIST_SORT_PLAYCOUNTREV))
+        {
+            g_sortData[i].data = 0;
+
+            char filename[MAX_PATH];
+            if (!get_track_filename(playlist, i, filename, sizeof(filename)))
+            {
+                int tag_type;
+
+                if ((sort_type == PLAYLIST_SORT_LASTPLAYED) ||
+                    (sort_type == PLAYLIST_SORT_LASTPLAYEDREV))
+                {
+                    tag_type = tag_lastplayed;
+                }
+                else if ((sort_type == PLAYLIST_SORT_PLAYCOUNT) ||
+                         (sort_type == PLAYLIST_SORT_PLAYCOUNTREV))
+                {
+                    tag_type = tag_playcount;
+                }
+                getTagcacheValue(filename, &g_sortData[i].data, tag_type);
+            }
+            else
+            {
+                // Error
+                if (quit_on_error)
+                {
+                    result = -1;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            // Unknown type
+            result = -1;
+            break;
         }
     }
 
-    // Sort by tag data
-    qsort(g_sortData, playlist->amount, sizeof(struct playlistSort), sort_compare_fn_tagcache);
-
-    // Replace indices
-    for (i = 0; i < playlist->amount; i++)
+    if (result == 0)
     {
-        playlist->indices[i] = g_sortData[i].index;
-        if (dcfrefs) dcfrefs[i] = g_sortData[i].ref;
+        // Set up global sort flags
+        if ((sort_type == PLAYLIST_SORT_REVERSE) ||
+            (sort_type == PLAYLIST_SORT_LASTPLAYEDREV) ||
+            (sort_type == PLAYLIST_SORT_PLAYCOUNTREV))
+        {
+            g_reverse_sort = true;
+        }
+        else
+        {
+            g_reverse_sort = false;
+        }
+        g_sort_playlist = playlist;
+
+        // Sort
+        if (sort_type == PLAYLIST_SORT_FILENAME)
+        {
+            qsort(g_sortData, playlist->amount, sizeof(struct playlistSort), sort_compare_fn_filename);
+        }
+        else
+        {
+            qsort(g_sortData, playlist->amount, sizeof(struct playlistSort), sort_compare_fn_tagcache);
+        }
+
+        // Replace indices
+        for (i = 0; i < playlist->amount; i++)
+        {
+            playlist->indices[i] = g_sortData[i].index;
+#ifdef HAVE_DIRCACHE
+            if (dcfrefs) dcfrefs[i] = g_sortData[i].ref;
+#endif //HAVE_DIRCACHE
+        }
+
+        playlist->last_insert_pos = -1;
+        playlist->index = 0;
+        find_and_set_playlist_index_unlocked(playlist, current);
+        playlist->first_index = 0;
     }
 
     cpu_boost(false);
 
-    playlist->last_insert_pos = -1;
-    playlist->index = 0;
-    find_and_set_playlist_index_unlocked(playlist, current);
-    playlist->first_index = 0;
+    return result;
 }
 
 /* sort currently playing playlist by tagcache */
-int playlist_sort_by_tagcache(struct playlist_info* playlist)
+int playlist_sort_by_tagcache(struct playlist_info* playlist, int sort_type)
 {
+    int result;
+
     if (!playlist)
         playlist = &current_playlist;
 
     dc_thread_stop(playlist);
     playlist_write_lock(playlist);
 
-    size_t buffer_size;
-    g_sortData = plugin_get_buffer(&buffer_size);
-    if (buffer_size >= (playlist->amount * sizeof(struct playlistSort)))
+    if (sort_type == PLAYLIST_SORT_NORMAL)
     {
-        playlist_sort_by_tagcache_unlocked(playlist);
+        // Borrow the regular sort algorithm
+        unsigned long current = playlist->indices[playlist->index];
 
-        if ((audio_status() & AUDIO_STATUS_PLAY) && playlist->started)
-            audio_flush_and_reload_tracks();
+        result = sort_playlist_unlocked(playlist, false, false);
+
+        if (result == 0)
+        {
+            playlist->last_insert_pos = -1;
+            playlist->index = 0;
+            find_and_set_playlist_index_unlocked(playlist, current);
+            playlist->first_index = 0;
+        }
+    }
+    else
+    {
+        // Sort by tagcache
+        size_t buffer_size;
+        g_sortData = plugin_get_buffer(&buffer_size);
+        if (buffer_size >= (playlist->amount * sizeof(struct playlistSort)))
+        {
+            result = playlist_sort_by_tagcache_unlocked(playlist, sort_type, false);
+        }
+        else
+        {
+            result = -1;
+        }
+    }
+
+    if ((result == 0) && (audio_status() & AUDIO_STATUS_PLAY) && playlist->started)
+    {
+        audio_flush_and_reload_tracks();
     }
 
     playlist_write_unlock(playlist);
     dc_thread_start(playlist, true);
 
-    return 0;
+    return result;
 }

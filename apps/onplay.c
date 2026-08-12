@@ -551,6 +551,7 @@ static int wps_view_cur_playlist(void)
     return 0;
 }
 
+#if 0
 static int queue_all(void)
 {
     playlist_queue_all(true);
@@ -564,6 +565,7 @@ static int unqueue_all(void)
 
     return false;
 }
+#endif
 
 static int remove_recent(void)
 {
@@ -579,12 +581,57 @@ static int remove_duplicates(void)
     return false;
 }
 
-static int sort_tagcache(void)
+static int remove_dupes_and_recents(void)
 {
-    playlist_sort_by_tagcache(NULL);
+    playlist_delete_duplicates(NULL, NULL);
+    playlist_delete_all_recently_played(NULL, NULL);
 
     return false;
 }
+
+struct sort_by_tagcache_param
+{
+    int sort_type;
+};
+
+static int sort_tagcache(struct sort_by_tagcache_param *param)
+{
+    playlist_sort_by_tagcache(NULL, param->sort_type);
+
+    return false;
+}
+
+static struct sort_by_tagcache_param sort_type_1 = {PLAYLIST_SORT_NORMAL};
+static struct sort_by_tagcache_param sort_type_2 = {PLAYLIST_SORT_REVERSE};
+static struct sort_by_tagcache_param sort_type_3 = {PLAYLIST_SORT_FILENAME};
+static struct sort_by_tagcache_param sort_type_4 = {PLAYLIST_SORT_LASTPLAYED};
+static struct sort_by_tagcache_param sort_type_5 = {PLAYLIST_SORT_LASTPLAYEDREV};
+static struct sort_by_tagcache_param sort_type_6 = {PLAYLIST_SORT_PLAYCOUNT};
+static struct sort_by_tagcache_param sort_type_7 = {PLAYLIST_SORT_PLAYCOUNTREV};
+
+MENUITEM_FUNCTION(remove_recent_item, 0, ID2P(LANG_REMOVE_ALL_RECENTLY_PLAYED),
+                  remove_recent, NULL, Icon_Playlist);
+MENUITEM_FUNCTION(remove_duplicates_item, 0, ID2P(LANG_REMOVE_DUPLICATES),
+                  remove_duplicates, NULL, Icon_Playlist);
+MENUITEM_FUNCTION_W_PARAM(sort1_item, 0, "Sort Normally",             sort_tagcache, &sort_type_1, NULL, Icon_Playlist);
+MENUITEM_FUNCTION_W_PARAM(sort2_item, 0, "Reverse List",              sort_tagcache, &sort_type_2, NULL, Icon_Playlist);
+MENUITEM_FUNCTION_W_PARAM(sort3_item, 0, "Sort By Filename",          sort_tagcache, &sort_type_3, NULL, Icon_Playlist);
+MENUITEM_FUNCTION_W_PARAM(sort4_item, 0, "Sort By Last Played",       sort_tagcache, &sort_type_4, NULL, Icon_Playlist);
+MENUITEM_FUNCTION_W_PARAM(sort5_item, 0, "Sort By Last Played (Rev)", sort_tagcache, &sort_type_5, NULL, Icon_Playlist);
+MENUITEM_FUNCTION_W_PARAM(sort6_item, 0, "Sort By Play Count",        sort_tagcache, &sort_type_6, NULL, Icon_Playlist);
+MENUITEM_FUNCTION_W_PARAM(sort7_item, 0, "Sort By Play Count (Rev)",  sort_tagcache, &sort_type_7, NULL, Icon_Playlist);
+
+MAKE_ONPLAYMENU(playlist_manipulations, "Playlist Manipulations", NULL, Icon_Playlist,
+                &remove_recent_item,
+                &remove_duplicates_item,
+                &sort1_item,
+                &sort2_item,
+                &sort3_item,
+                &sort4_item,
+                &sort5_item,
+                &sort6_item,
+                &sort7_item
+                );
 
 MENUITEM_FUNCTION(wps_view_cur_playlist_item, 0, ID2P(LANG_VIEW_DYNAMIC_PLAYLIST),
                   wps_view_cur_playlist, NULL, Icon_NOICON);
@@ -596,27 +643,20 @@ MENUITEM_FUNCTION(reshuffle_item, 0, ID2P(LANG_SHUFFLE_PLAYLIST),
                   shuffle_playlist, NULL, Icon_Playlist);
 MENUITEM_FUNCTION(playing_time_item, 0, ID2P(LANG_PLAYING_TIME),
                   playing_time, NULL, Icon_Playlist);
-MENUITEM_FUNCTION(queue_all_item, 0, ID2P(LANG_QUEUE_ALL),
-                  queue_all, NULL, Icon_Playlist);
-MENUITEM_FUNCTION(unqueue_all_item, 0, ID2P(LANG_UNQUEUE_ALL),
-                  unqueue_all, NULL, Icon_Playlist);
-MENUITEM_FUNCTION(remove_recent_item, 0, ID2P(LANG_REMOVE_ALL_RECENTLY_PLAYED),
-                  remove_recent, NULL, Icon_Playlist);
-MENUITEM_FUNCTION(remove_duplicates_item, 0, ID2P(LANG_REMOVE_DUPLICATES),
-                  remove_duplicates, NULL, Icon_Playlist);
-MENUITEM_FUNCTION(sort_tagcache_item, 0, "Sort By Played",
-                  sort_tagcache, NULL, Icon_Playlist);
+//MENUITEM_FUNCTION(queue_all_item, 0, ID2P(LANG_QUEUE_ALL),
+//                  queue_all, NULL, Icon_Playlist);
+//MENUITEM_FUNCTION(unqueue_all_item, 0, ID2P(LANG_UNQUEUE_ALL),
+//                  unqueue_all, NULL, Icon_Playlist);
+MENUITEM_FUNCTION(remove_dupes_and_recents_item, 0, "Remove dupes and recents",
+                  remove_dupes_and_recents, NULL, Icon_Playlist);
 MAKE_ONPLAYMENU( wps_playlist_menu, ID2P(LANG_CURRENT_PLAYLIST),
                  NULL, Icon_Playlist,
                  &wps_view_cur_playlist_item,
                  &search_playlist_item,
-                 &queue_all_item,
-                 &unqueue_all_item,
                  &playlist_save_item,
                  &reshuffle_item,
-                 &remove_recent_item,
-                 &remove_duplicates_item,
-                 &sort_tagcache_item,
+                 &playlist_manipulations,
+                 &remove_dupes_and_recents_item,
                  &playing_time_item
                );
 
