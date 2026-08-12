@@ -4493,3 +4493,113 @@ failure:
 
     return result;
 }
+
+static int getTagcacheValue(const char *path, long *pData)
+{
+    // Get lastplayed date from tagcache
+    if (!path) return -1;
+    if (!pData) return -2;
+
+    const char *basename;
+#ifdef HAVE_MULTIVOLUME
+    /* remove the volume identifier it might change just use the relative part*/
+    path_strip_volume(path, &basename, false);
+    if (basename == NULL)
+#endif
+        basename = path;
+
+    struct mp3entry id3;
+
+    if (!tagcache_fill_tags(&id3, basename)) return -5;
+    *pData = id3.lastplayed;
+    return 0;
+}
+
+struct playlistSort
+{
+    unsigned long index;
+    long data;
+    struct dircache_fileref ref;
+};
+
+static struct playlistSort *g_sortData = NULL;
+
+static int sort_compare_fn_tagcache(const void* p1, const void* p2)
+{
+    struct playlistSort *item1 = (struct playlistSort *)p1;
+    struct playlistSort *item2 = (struct playlistSort *)p2;
+
+    if (item1->data < item2->data) return -1;
+    if (item1->data > item2->data) return 1;
+    return sort_compare_fn(&item1->index, &item2->index);
+}
+
+static void playlist_sort_by_tagcache_unlocked(struct playlist_info* playlist)
+{
+    int i;
+    unsigned long current = playlist->indices[playlist->index];
+
+    struct dircache_fileref *dcfrefs = NULL;
+    if (playlist->dcfrefs_handle)
+    {
+        dcfrefs = core_get_data(playlist->dcfrefs_handle);
+    }
+
+    cpu_boost(true);
+
+    // Get tagcache data
+    for (i = 0; i < playlist->amount; i++)
+    {
+        g_sortData[i].index = playlist->indices[i];
+        g_sortData[i].data = 0;
+        if (dcfrefs) g_sortData[i].ref = dcfrefs[i];
+
+        struct playlist_track_info track_info;
+        if (playlist_get_track_info(playlist, i, &track_info) == 0)
+        {
+            getTagcacheValue(track_info.filename, &g_sortData[i].data);
+        }
+    }
+
+    // Sort by tag data
+    qsort(g_sortData, playlist->amount, sizeof(struct playlistSort), sort_compare_fn_tagcache);
+
+    // Replace indices
+    for (i = 0; i < playlist->amount; i++)
+    {
+        playlist->indices[i] = g_sortData[i].index;
+        if (dcfrefs) dcfrefs[i] = g_sortData[i].ref;
+    }
+
+    cpu_boost(false);
+
+    playlist->last_insert_pos = -1;
+    playlist->index = 0;
+    find_and_set_playlist_index_unlocked(playlist, current);
+    playlist->first_index = 0;
+}
+
+/* sort currently playing playlist by tagcache */
+int playlist_sort_by_tagcache(struct playlist_info* playlist)
+{
+    if (!playlist)
+        playlist = &current_playlist;
+
+    dc_thread_stop(playlist);
+    playlist_write_lock(playlist);
+
+    size_t buffer_size;
+    g_sortData = plugin_get_buffer(&buffer_size);
+    if (buffer_size >= (playlist->amount * sizeof(struct playlistSort)))
+    {
+        playlist_sort_by_tagcache_unlocked(playlist);
+
+        if ((audio_status() & AUDIO_STATUS_PLAY) && playlist->started)
+            audio_flush_and_reload_tracks();
+    }
+
+    playlist_write_unlock(playlist);
+    dc_thread_start(playlist, true);
+
+    return 0;
+}
