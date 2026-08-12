@@ -209,5 +209,6 @@ void tagcache_stop_scan(void);
 bool tagcache_update(void);
 bool tagcache_rebuild(void);
 int tagcache_get_max_commit_step(void);
+int tagcache_fill_tag(long *pData, const char *filename, int type);
 #endif
 #endif

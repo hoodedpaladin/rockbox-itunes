@@ -2051,6 +2051,34 @@ bool tagcache_fill_tags(struct mp3entry *id3, const char *filename)
 
     return true;
 }
+
+int tagcache_fill_tag(long *pData, const char *filename, int type)
+{
+    struct index_entry *entry;
+    int idx_id;
+
+    if (!tc_stat.ready || !tc_stat.ramcache)
+        return -1;
+
+    /* Find the corresponding entry in tagcache. */
+    idx_id = find_entry_ram(filename);
+    if (idx_id < 0)
+        return -1;
+
+    entry = &tcramcache.hdr->indices[idx_id];
+
+    switch (type)
+    {
+        case tag_lastplayed:
+        case tag_playcount:
+            *pData = get_tag_numeric(entry, type, idx_id);
+            break;
+        default:
+            return -1;
+    }
+
+    return 0;
+}
 #endif /* defined(HAVE_TC_RAMCACHE) && defined(HAVE_DIRCACHE) */
 
 static inline void write_item(const char *item)
