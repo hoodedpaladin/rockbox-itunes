@@ -16714,6 +16714,20 @@
   </voice>
 </phrase>
 <phrase>
+  id: LANG_ID3_PLAYCOUNT
+  desc: in tag viewer
+  user: core
+  <source>
+    *: "Play Count"
+  </source>
+  <dest>
+    *: "Play Count"
+  </dest>
+  <voice>
+    *: "Play Count"
+  </voice>
+</phrase>
+<phrase>
   id: LANG_REMOVE_ALL_RECENTLY_PLAYED
   desc: in tag viewer
   user: core

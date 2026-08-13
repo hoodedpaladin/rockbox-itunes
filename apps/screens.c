@@ -383,6 +383,7 @@ static const int id3_headers[]=
     LANG_ID3_LENGTH,
     LANG_ID3_PLAYLIST,
     LANG_ID3_LASTPLAYED,
+    LANG_ID3_PLAYCOUNT,
     LANG_FORMAT,
     LANG_ID3_BITRATE,
     LANG_ID3_FREQUENCY,
@@ -398,6 +399,7 @@ struct id3view_info {
     struct mp3entry* id3;
     struct tm *modified;
     struct tm lastplayed;
+    int playcount;
     int track_ct;
     int count;
     int playlist_display_index;
@@ -743,6 +745,12 @@ static const char * id3_get_or_speak_info(int selected_item, void* data,
                         talk_date(&info->lastplayed, true);
                 }
                 break;
+            case LANG_ID3_PLAYCOUNT:
+                snprintf(buffer, buffer_len, "%d", info->playcount);
+                val = buffer;
+                if(say_it)
+                    talk_number(info->playcount, true);
+                break;
         }
         if((!val || !*val) && say_it)
             talk_id(LANG_ID3_NO_INFO, true);
@@ -802,6 +810,7 @@ refresh_info:
 
     // Get lastplayed date from tagcache
     info.lastplayederror = -1;
+    info.playcount = -1;
     if (track_ct == 1)
     {
         if (id3->path)
@@ -834,6 +843,7 @@ refresh_info:
                     {
                         info.lastplayederror = -7;
                     }
+                    info.playcount = tagcache_get_numeric(&tcs, tag_playcount);
                     tagcache_search_finish(&tcs);
                 }
                 else
