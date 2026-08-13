@@ -4762,3 +4762,83 @@ int playlist_sort_by_tagcache(struct playlist_info* playlist, int sort_type)
 
     return result;
 }
+/*
+ * remove track at specified position and after
+ */
+static int remove_to_current_unlocked(struct playlist_info* playlist, int position)
+{
+    int result;
+
+    if (playlist->amount <= 0)
+        return -1;
+
+    if (position == playlist->index) return 0;
+
+    int selected_offset = (position          - playlist->first_index + playlist->amount) % playlist->amount;
+    int current_offset  = (playlist->index   - playlist->first_index + playlist->amount) % playlist->amount;
+    int to_remove = abs(selected_offset - current_offset);
+
+    while (to_remove--)
+    {
+        int position;
+
+        if (selected_offset < current_offset)
+        {
+            position = (playlist->index - 1 + playlist->amount) % playlist->amount;
+        }
+        else
+        {
+            position = (playlist->index + 1) % playlist->amount;
+        }
+        result = remove_track_unlocked(playlist, position, true);
+        if (result < 0)
+            return result;
+    }
+
+    return 0;
+}
+
+/*
+ * Delete all tracks to current.
+ */
+int playlist_delete_to_current(struct playlist_info* playlist, int index, struct gui_synclist *pplaylist_lists)
+{
+    int result = 0;
+    int previous_amount;
+    int amount_removed = 0;
+
+    if (!playlist)
+        playlist = &current_playlist;
+
+    dc_thread_stop(playlist);
+    playlist_write_lock(playlist);
+
+    if (check_control(playlist) < 0)
+    {
+        notify_control_access_error();
+        result = -1;
+        goto out;
+    }
+
+    previous_amount = playlist->amount;
+    result = remove_to_current_unlocked(playlist, index);
+    if (result < 0)
+        goto out;
+    amount_removed = previous_amount - playlist->amount;
+
+out:
+    playlist_write_unlock(playlist);
+    dc_thread_start(playlist, false);
+
+    if (result != -1 && (audio_status() & AUDIO_STATUS_PLAY) &&
+        playlist->started)
+        audio_flush_and_reload_tracks();
+
+    // Outside the lock, update the GUI as necessary
+    if (amount_removed > 0)
+    {
+        gui_synclist_del_items(pplaylist_lists, amount_removed);
+    }
+
+    return result;
+}
