@@ -860,6 +860,15 @@ static int compare(const void *p1, const void *p2)
     return qsort_fn(e1->name, e2->name, MAX_PATH);
 }
 
+static int string_position_sort(const void *p1, const void *p2)
+{
+    struct tagentry *e1 = (struct tagentry *)p1;
+    struct tagentry *e2 = (struct tagentry *)p2;
+    if (e1->name < e2->name) return -1;
+    if (e1->name > e2->name) return 1;
+    return 0;
+}
+
 static void tagtree_buffer_event(unsigned short id, void *ev_data)
 {
     (void)id;
@@ -1688,6 +1697,73 @@ static int retrieve_entries(struct tree_context *c, int offset, bool init)
 entry_skip_formatter:
         dptr++;
         current_entry_count++;
+
+        // If these are true, we can and need to shorten the buffer used
+        if (sort && sort_limit && ((sort_limit + 1000) < c->cache.max_entries) && (current_entry_count > special_entry_count + sort_limit))
+        {
+            if ((current_entry_count >= c->cache.max_entries) || ((namebufused + 1000) > c->cache.name_buffer_size))
+            {
+                if (global_settings.interpret_numbers)
+                    qsort_fn = sort_inverse ? strnatcasecmp_n_inv : strnatcasecmp_n;
+                else
+                    qsort_fn = sort_inverse ? strncasecmp_inv : strncasecmp;
+
+                // Sort by the criteria to eliminate un-chosen entries
+                struct tagentry *entries = get_entries(c);
+                qsort(&entries[special_entry_count],
+                      current_entry_count - special_entry_count,
+                      sizeof(struct tagentry),
+                      compare);
+
+                current_entry_count = special_entry_count + sort_limit;
+
+                // Sort again by string position, then clean up the gaps in the string buffer
+                qsort(get_entries(c) + special_entry_count,
+                      current_entry_count - special_entry_count,
+                      sizeof(struct tagentry),
+                      string_position_sort);
+
+                namebufused = 0;
+                char *buffer = core_get_data(c->cache.name_buffer_handle);
+                int i;
+                for (i = 0; i < sort_limit; i++)
+                {
+                    dptr = get_entries(c) + (special_entry_count + i);
+                    if (dptr->name > buffer)
+                    {
+                        char *src = dptr->name;
+                        dptr->name = buffer;
+
+                        while (*src != 0)
+                        {
+                            *buffer = *src;
+                            buffer++;
+                            namebufused++;
+                            src++;
+                        }
+                        *buffer = '\0';
+                        buffer++;
+                        namebufused++;
+                    }
+                    else
+                    {
+                        int length = strlen(dptr->name) + 1;
+                        namebufused += length;
+                        buffer += length;
+                    }
+                }
+
+                dptr = get_entries(c) + current_entry_count;
+
+                // If there isn't lots of buffer now, quit anyway
+                if ((namebufused + 1000) > c->cache.name_buffer_size)
+                {
+                    c->dirfull = true;
+                    sort = false;
+                    break ;
+                }
+            }
+        }
 
         if (current_entry_count >= c->cache.max_entries)
         {
