@@ -2781,6 +2781,35 @@ unsigned int playlist_get_filename_crc32(struct playlist_info *playlist,
     return crc_32(basename, strlen(basename), -1);
 }
 
+/* returns the crc32 of the filename of the FOLDER at the specified index */
+unsigned int playlist_get_foldername_crc32(struct playlist_info *playlist,
+                                         int index)
+{
+    struct playlist_track_info track_info;
+    if (playlist_get_track_info(playlist, index, &track_info) == -1)
+        return -1;
+    char *basename;
+#ifdef HAVE_MULTIVOLUME
+    /* remove the volume identifier it might change just use the relative part*/
+    path_strip_volume(track_info.filename, &basename, false);
+    if (basename == NULL)
+#endif
+        basename = track_info.filename;
+    int i = strlen(basename);
+    while (i > 1)
+    {
+        if (basename[i] == '/')
+        {
+            basename[i] = 0;
+            break;
+        }
+        i--;
+    }
+
+    NOTEF("%s: %s", __func__, basename);
+    return crc_32(basename, strlen(basename), -1);
+}
+
 /* returns index of first track in playlist */
 int playlist_get_first_index(const struct playlist_info* playlist)
 {
@@ -4464,7 +4493,7 @@ int playlist_emancipate(void)
         }
 
         result = fdprintf(fd, "%c:%d:%d:%s\n",
-			((playlist->indices[index] & PLAYLIST_QUEUED) == PLAYLIST_QUEUED) ? PLAYLIST_COMMAND_LETTER_QUEUE : PLAYLIST_COMMAND_LETTER_ADD, i, i, tmp_buf);
+                ((playlist->indices[index] & PLAYLIST_QUEUED) == PLAYLIST_QUEUED) ? PLAYLIST_COMMAND_LETTER_QUEUE : PLAYLIST_COMMAND_LETTER_ADD, i, i, tmp_buf);
         if (result < 0)
         {
             break;
@@ -4529,10 +4558,13 @@ static int getTagcacheValue(const char *path, long *pData, int tag_type)
 #endif
 }
 
+#define PLAYLIST_POSITION_TO_INDEX(pl, pos) ((pos + pl->first_index) % pl->amount)
+
 struct playlistSort
 {
     unsigned long index;
-    long data;
+    long dataValue;
+    long playlist_position;
 #ifdef HAVE_DIRCACHE
     struct dircache_fileref ref;
 #endif //HAVE_DIRCACHE
@@ -4542,7 +4574,7 @@ static struct playlistSort *g_sortData = NULL;
 static bool g_reverse_sort = false;
 struct playlist_info *g_sort_playlist = NULL;
 
-// playlistSort->data = the tag in question, or the index
+// playlistSort->dataValue = the tag in question, or the index
 static int sort_compare_fn_tagcache(const void* p1, const void* p2)
 {
     struct playlistSort *item1 = (struct playlistSort *)p1;
@@ -4550,19 +4582,19 @@ static int sort_compare_fn_tagcache(const void* p1, const void* p2)
 
     if (!g_reverse_sort)
     {
-        if (item1->data < item2->data) return -1;
-        if (item1->data > item2->data) return 1;
+        if (item1->dataValue < item2->dataValue) return -1;
+        if (item1->dataValue > item2->dataValue) return 1;
         return sort_compare_fn(&item1->index, &item2->index);
     }
     else
     {
-        if (item1->data > item2->data) return -1;
-        if (item1->data < item2->data) return 1;
+        if (item1->dataValue > item2->dataValue) return -1;
+        if (item1->dataValue < item2->dataValue) return 1;
         return 0 - sort_compare_fn(&item1->index, &item2->index);
     }
 }
 
-// playlistSort->data = track index so that filename can be retrieved
+// playlistSort->playlist_position = track index so that filename can be retrieved
 static int sort_compare_fn_filename(const void* p1, const void* p2)
 {
     struct playlistSort *item1 = (struct playlistSort *)p1;
@@ -4570,8 +4602,8 @@ static int sort_compare_fn_filename(const void* p1, const void* p2)
     char filename1[MAX_PATH];
     char filename2[MAX_PATH];
 
-    if (get_track_filename(g_sort_playlist, item1->data, filename1, sizeof(filename1))) return 0;
-    if (get_track_filename(g_sort_playlist, item2->data, filename2, sizeof(filename2))) return 0;
+    if (get_track_filename(g_sort_playlist, PLAYLIST_POSITION_TO_INDEX(g_sort_playlist, item1->playlist_position), filename1, sizeof(filename1))) return 0;
+    if (get_track_filename(g_sort_playlist, PLAYLIST_POSITION_TO_INDEX(g_sort_playlist, item2->playlist_position), filename2, sizeof(filename2))) return 0;
 
 
     const char *basename1 = filename1;
@@ -4592,6 +4624,66 @@ static int sort_compare_fn_filename(const void* p1, const void* p2)
     {
         return 0 - strcasecmp(basename1, basename2);
     }
+}
+// playlistSort->dataValue = sort numerically by this
+// Otherwise, use playlist_position as track index and sort by filename
+static int sort_compare_fn_coallesce(const void* p1, const void* p2)
+{
+    struct playlistSort *item1 = (struct playlistSort *)p1;
+    struct playlistSort *item2 = (struct playlistSort *)p2;
+
+    if (!g_reverse_sort)
+    {
+        if (item1->dataValue < item2->dataValue) return -1;
+        if (item1->dataValue > item2->dataValue) return 1;
+        return sort_compare_fn_filename(&item1->index, &item2->index);
+    }
+    else
+    {
+        if (item1->dataValue > item2->dataValue) return -1;
+        if (item1->dataValue < item2->dataValue) return 1;
+        return sort_compare_fn_filename(&item1->index, &item2->index);
+    }
+}
+
+// Sort tracks so that album tracks are in order, but don't change which album a given spot is
+// i.e. A2 B4 B3 A1 A3 B2 B1 becomes
+//      A1 B1 B2 A2 A3 B3 B4
+// dataValue is the album CRC, and playlist_position is the index for finding a file name
+// selection sort is N*N but at least album tracks are only compared against each other
+static int sortListOrganizeAlbums(void)
+{
+    struct playlist_info *playlist = g_sort_playlist;
+
+    // We will need to selection sort this for simplicity
+    int i;
+
+    for (i = 0; i < playlist->amount - 1; i++)
+    {
+        int j;
+        int lowest_of_album = i;
+
+        for (j = i + 1; j < playlist->amount; j++)
+        {
+            if (g_sortData[j].dataValue != g_sortData[i].dataValue)
+            {
+                continue;
+            }
+            if (sort_compare_fn_filename(g_sortData + lowest_of_album, g_sortData + j) > 0)
+            {
+                lowest_of_album = j;
+            }
+        }
+        // Swap this track to the lowest of the album
+        if (lowest_of_album != i)
+        {
+            struct playlistSort temp = g_sortData[i];
+            g_sortData[i] = g_sortData[lowest_of_album];
+            g_sortData[lowest_of_album] = temp;
+        }
+    }
+
+    return 0;
 }
 
 static int playlist_sort_by_tagcache_unlocked(struct playlist_info* playlist, int sort_type, bool quit_on_error)
@@ -4614,25 +4706,21 @@ static int playlist_sort_by_tagcache_unlocked(struct playlist_info* playlist, in
     for (i = 0; i < playlist->amount; i++)
     {
         // Static playlist data
-        g_sortData[i].index = playlist->indices[i];
+        g_sortData[i].index = playlist->indices[PLAYLIST_POSITION_TO_INDEX(playlist, i)];
 #ifdef HAVE_DIRCACHE
-        if (dcfrefs) g_sortData[i].ref = dcfrefs[i];
+        if (dcfrefs) g_sortData[i].ref = dcfrefs[PLAYLIST_POSITION_TO_INDEX(playlist, i)];
 #endif //HAVE_DIRCACHE
+        g_sortData[i].playlist_position = i;
 
-        if ((sort_type == PLAYLIST_SORT_REVERSE) ||
-            (sort_type == PLAYLIST_SORT_FILENAME))
+        if ((sort_type == PLAYLIST_SORT_LASTPLAYED) ||
+            (sort_type == PLAYLIST_SORT_LASTPLAYEDREV) ||
+            (sort_type == PLAYLIST_SORT_PLAYCOUNT) ||
+            (sort_type == PLAYLIST_SORT_PLAYCOUNTREV))
         {
-            g_sortData[i].data = i;
-        }
-        else if ((sort_type == PLAYLIST_SORT_LASTPLAYED) ||
-                 (sort_type == PLAYLIST_SORT_LASTPLAYEDREV) ||
-                 (sort_type == PLAYLIST_SORT_PLAYCOUNT) ||
-                 (sort_type == PLAYLIST_SORT_PLAYCOUNTREV))
-        {
-            g_sortData[i].data = 0;
+            g_sortData[i].dataValue = 0;
 
             char filename[MAX_PATH];
-            if (!get_track_filename(playlist, i, filename, sizeof(filename)))
+            if (!get_track_filename(playlist, PLAYLIST_POSITION_TO_INDEX(playlist, i), filename, sizeof(filename)))
             {
                 int tag_type;
 
@@ -4646,7 +4734,7 @@ static int playlist_sort_by_tagcache_unlocked(struct playlist_info* playlist, in
                 {
                     tag_type = tag_playcount;
                 }
-                getTagcacheValue(filename, &g_sortData[i].data, tag_type);
+                getTagcacheValue(filename, &g_sortData[i].dataValue, tag_type);
             }
             else
             {
@@ -4658,11 +4746,57 @@ static int playlist_sort_by_tagcache_unlocked(struct playlist_info* playlist, in
                 }
             }
         }
+        else if (sort_type == PLAYLIST_SORT_COALLESCE_ALBUMS)
+        {
+            // dataValue = folder rank (to be filled out later)
+            g_sortData[i].dataValue = 0;
+        }
+        else if (sort_type == PLAYLIST_SORT_ORGANIZE_ALBUMS)
+        {
+            // dataValue = crc of folder name
+            g_sortData[i].dataValue = playlist_get_foldername_crc32(playlist, PLAYLIST_POSITION_TO_INDEX(playlist, i));
+        }
         else
         {
             // Unknown type
             result = -1;
             break;
+        }
+    }
+
+    // Stage 2 of setup
+    if (result == 0)
+    {
+        if (sort_type == PLAYLIST_SORT_COALLESCE_ALBUMS)
+        {
+            for (i = 0; i < playlist->amount; i++)
+            {
+                if (g_sortData[i].dataValue > 0)
+                {
+                    // Already been reached
+                    continue;
+                }
+                // Set this track and all tracks from the same album to the next lowest value
+                g_sortData[i].dataValue = i + 1;
+                unsigned int foldercrc = playlist_get_foldername_crc32(playlist, PLAYLIST_POSITION_TO_INDEX(playlist, i));
+                DEBUGF("foldercrc = 0x%X\n", foldercrc);
+                for (int j = i + 1; j < playlist->amount; j++)
+                {
+                    unsigned int thiscrc = playlist_get_foldername_crc32(playlist, PLAYLIST_POSITION_TO_INDEX(playlist, j));
+                    DEBUGF("thiscrc = 0x%X\n", foldercrc);
+                    if (thiscrc == foldercrc)
+                    {
+                        g_sortData[j].dataValue = i+1;
+                    }
+                }
+            }
+#if 1
+            // Debug prints
+            for (i = 0; i < playlist->amount; i++)
+            {
+                DEBUGF("Album rank of track %u = %u\n", i, g_sortData[i].dataValue);
+            }
+#endif
         }
     }
 
@@ -4686,12 +4820,21 @@ static int playlist_sort_by_tagcache_unlocked(struct playlist_info* playlist, in
         {
             qsort(g_sortData, playlist->amount, sizeof(struct playlistSort), sort_compare_fn_filename);
         }
+        else if (sort_type == PLAYLIST_SORT_COALLESCE_ALBUMS)
+        {
+            qsort(g_sortData, playlist->amount, sizeof(struct playlistSort), sort_compare_fn_coallesce);
+        }
+        else if (sort_type == PLAYLIST_SORT_ORGANIZE_ALBUMS)
+        {
+            sortListOrganizeAlbums();
+        }
         else
         {
             qsort(g_sortData, playlist->amount, sizeof(struct playlistSort), sort_compare_fn_tagcache);
         }
 
         // Replace indices
+        // These are not going to be remapped! Because first_index is going to be 0 now
         for (i = 0; i < playlist->amount; i++)
         {
             playlist->indices[i] = g_sortData[i].index;

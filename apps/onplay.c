@@ -608,6 +608,8 @@ static struct sort_by_tagcache_param sort_type_4 = {PLAYLIST_SORT_LASTPLAYED};
 static struct sort_by_tagcache_param sort_type_5 = {PLAYLIST_SORT_LASTPLAYEDREV};
 static struct sort_by_tagcache_param sort_type_6 = {PLAYLIST_SORT_PLAYCOUNT};
 static struct sort_by_tagcache_param sort_type_7 = {PLAYLIST_SORT_PLAYCOUNTREV};
+static struct sort_by_tagcache_param sort_type_8 = {PLAYLIST_SORT_COALLESCE_ALBUMS};
+static struct sort_by_tagcache_param sort_type_9 = {PLAYLIST_SORT_ORGANIZE_ALBUMS};
 
 MENUITEM_FUNCTION(remove_recent_item, 0, ID2P(LANG_REMOVE_ALL_RECENTLY_PLAYED),
                   remove_recent, NULL, Icon_Playlist);
@@ -620,6 +622,8 @@ MENUITEM_FUNCTION_W_PARAM(sort4_item, 0, "Sort By Last Played",       sort_tagca
 MENUITEM_FUNCTION_W_PARAM(sort5_item, 0, "Sort By Last Played (Rev)", sort_tagcache, &sort_type_5, NULL, Icon_Playlist);
 MENUITEM_FUNCTION_W_PARAM(sort6_item, 0, "Sort By Play Count",        sort_tagcache, &sort_type_6, NULL, Icon_Playlist);
 MENUITEM_FUNCTION_W_PARAM(sort7_item, 0, "Sort By Play Count (Rev)",  sort_tagcache, &sort_type_7, NULL, Icon_Playlist);
+MENUITEM_FUNCTION_W_PARAM(sort8_item, 0, "Coallesce Albums",          sort_tagcache, &sort_type_8, NULL, Icon_Playlist);
+MENUITEM_FUNCTION_W_PARAM(sort9_item, 0, "Organize Albums",           sort_tagcache, &sort_type_9, NULL, Icon_Playlist);
 
 MAKE_ONPLAYMENU(playlist_manipulations, "Playlist Manipulations", NULL, Icon_Playlist,
                 &remove_recent_item,
@@ -630,7 +634,9 @@ MAKE_ONPLAYMENU(playlist_manipulations, "Playlist Manipulations", NULL, Icon_Pla
                 &sort4_item,
                 &sort5_item,
                 &sort6_item,
-                &sort7_item
+                &sort7_item,
+                &sort8_item,
+                &sort9_item,
                 );
 
 MENUITEM_FUNCTION(wps_view_cur_playlist_item, 0, ID2P(LANG_VIEW_DYNAMIC_PLAYLIST),
